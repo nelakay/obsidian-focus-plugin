@@ -1,10 +1,10 @@
 {
-	"id": "focus-plugin",
+	"id": "obsidian-focus",
 	"name": "Focus",
-	"version": "1.0.0",
+	"version": "1.0.1",
 	"minAppVersion": "1.0.0",
-	"description": "A focus enforcer that shows only your immediate tasks and this week's priorities. Not a task manager - a visibility firewall.",
-	"author": "You",
-	"authorUrl": "",
+	"description": "A visibility firewall for task management. Focus on what matters right now.",
+	"author": "nelakay",
+	"authorUrl": "https://github.com/nelakay",
 	"isDesktopOnly": false
 }
