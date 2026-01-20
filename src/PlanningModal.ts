@@ -80,7 +80,7 @@ export class PlanningModal extends Modal {
 		input.addEventListener('keydown', async (e) => {
 			if (e.key === 'Enter' && input.value.trim()) {
 				const newGoal: WeeklyGoal = {
-					id: Date.now().toString(36) + Math.random().toString(36).substr(2, 9),
+					id: Date.now().toString(36) + Math.random().toString(36).substring(2, 11),
 					title: input.value.trim(),
 				};
 				this.data!.goals.push(newGoal);

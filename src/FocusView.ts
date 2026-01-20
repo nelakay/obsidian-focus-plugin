@@ -1,4 +1,4 @@
-import { ItemView, WorkspaceLeaf, Menu, Notice } from 'obsidian';
+import { ItemView, WorkspaceLeaf, Menu, Notice, TFile } from 'obsidian';
 import { FOCUS_VIEW_TYPE, Task, TaskSection, FocusData } from './types';
 import type FocusPlugin from './main';
 
@@ -68,7 +68,7 @@ export class FocusView extends ItemView {
 				e.preventDefault();
 				if (this.selectedTaskIndex >= 0 && this.selectedTaskIndex < allTasks.length) {
 					const task = allTasks[this.selectedTaskIndex];
-					this.toggleTaskCompleteById(task.id);
+					void this.toggleTaskCompleteById(task.id);
 				}
 				break;
 
@@ -77,7 +77,7 @@ export class FocusView extends ItemView {
 				if (this.selectedTaskIndex >= 0) {
 					const task = allTasks[this.selectedTaskIndex];
 					if (task.section === 'thisWeek') {
-						this.moveTaskById(task.id, 'thisWeek', 'immediate');
+						void this.moveTaskById(task.id, 'thisWeek', 'immediate');
 					}
 				}
 				break;
@@ -87,7 +87,7 @@ export class FocusView extends ItemView {
 				if (this.selectedTaskIndex >= 0) {
 					const task = allTasks[this.selectedTaskIndex];
 					if (task.section === 'immediate') {
-						this.moveTaskById(task.id, 'immediate', 'thisWeek');
+						void this.moveTaskById(task.id, 'immediate', 'thisWeek');
 					}
 				}
 				break;
@@ -96,8 +96,8 @@ export class FocusView extends ItemView {
 				e.preventDefault();
 				if (this.selectedTaskIndex >= 0) {
 					const task = allTasks[this.selectedTaskIndex];
-					this.moveTaskById(task.id, task.section, 'unscheduled');
-					new Notice('Task moved to Unscheduled');
+					void this.moveTaskById(task.id, task.section, 'unscheduled');
+					new Notice('Task moved to unscheduled');
 				}
 				break;
 
@@ -507,8 +507,8 @@ export class FocusView extends ItemView {
 					.setIcon('file')
 					.onClick(async () => {
 						const file = this.plugin.app.vault.getAbstractFileByPath(task.sourceFile!);
-						if (file) {
-							await this.plugin.app.workspace.getLeaf().openFile(file as any);
+						if (file instanceof TFile) {
+							await this.plugin.app.workspace.getLeaf().openFile(file);
 						}
 					});
 			});

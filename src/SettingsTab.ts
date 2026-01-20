@@ -14,13 +14,13 @@ export class FocusSettingTab extends PluginSettingTab {
 		const { containerEl } = this;
 		containerEl.empty();
 
-		containerEl.createEl('h1', { text: 'Focus Settings' });
+		new Setting(containerEl).setName('Focus settings').setHeading();
 
 		// ===== HOTKEYS SECTION =====
 		this.renderHotkeysSection(containerEl);
 
 		// ===== TASK SETTINGS =====
-		containerEl.createEl('h2', { text: 'Task Settings' });
+		new Setting(containerEl).setName('Task settings').setHeading();
 
 		new Setting(containerEl)
 			.setName('Task file path')
@@ -51,7 +51,7 @@ export class FocusSettingTab extends PluginSettingTab {
 			);
 
 		// ===== VAULT SYNC SECTION =====
-		containerEl.createEl('h2', { text: 'Vault Task Sync' });
+		new Setting(containerEl).setName('Vault task sync').setHeading();
 
 		new Setting(containerEl)
 			.setName('Sync tasks from vault')
@@ -110,7 +110,7 @@ export class FocusSettingTab extends PluginSettingTab {
 		}
 
 		// ===== REMINDERS SECTION =====
-		containerEl.createEl('h2', { text: 'Reminders' });
+		new Setting(containerEl).setName('Reminders').setHeading();
 
 		new Setting(containerEl)
 			.setName('Weekly planning reminder')
@@ -176,11 +176,10 @@ export class FocusSettingTab extends PluginSettingTab {
 		}
 
 		// ===== ROLLOVER SECTION =====
-		containerEl.createEl('h2', { text: 'Weekly Rollover' });
-		containerEl.createEl('p', {
-			text: 'What happens to incomplete tasks when a new week starts',
-			cls: 'setting-item-description',
-		});
+		new Setting(containerEl)
+			.setName('Weekly rollover')
+			.setDesc('What happens to incomplete tasks when a new week starts')
+			.setHeading();
 
 		new Setting(containerEl)
 			.setName('Roll over Immediate → This Week')
@@ -207,20 +206,19 @@ export class FocusSettingTab extends PluginSettingTab {
 			);
 
 		// ===== ABOUT SECTION =====
-		containerEl.createEl('h2', { text: 'About' });
-		containerEl.createEl('p', {
-			text: 'Focus is a visibility firewall for your tasks. It helps you focus on what matters NOW by hiding everything else.',
-			cls: 'setting-item-description',
-		});
+		new Setting(containerEl)
+			.setName('About')
+			.setDesc('Focus is a visibility firewall for your tasks. It helps you focus on what matters NOW by hiding everything else.')
+			.setHeading();
 	}
 
 	private renderHotkeysSection(containerEl: HTMLElement): void {
-		containerEl.createEl('h2', { text: 'Hotkeys' });
+		new Setting(containerEl).setName('Hotkeys').setHeading();
 
 		const commands = [
-			{ id: COMMAND_IDS.openFocusView, name: 'Open Focus View' },
-			{ id: COMMAND_IDS.openPlanningView, name: 'Open Planning View' },
-			{ id: COMMAND_IDS.quickAddTask, name: 'Quick Add Task' },
+			{ id: COMMAND_IDS.openFocusView, name: 'Open focus view' },
+			{ id: COMMAND_IDS.openPlanningView, name: 'Open planning view' },
+			{ id: COMMAND_IDS.quickAddTask, name: 'Quick add task' },
 		];
 
 		for (const cmd of commands) {

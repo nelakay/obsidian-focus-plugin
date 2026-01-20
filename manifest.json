@@ -1,7 +1,7 @@
 {
 	"id": "productivity-focus",
 	"name": "Focus",
-	"version": "1.0.2",
+	"version": "1.0.3",
 	"minAppVersion": "1.0.0",
 	"description": "A visibility firewall for task management. Focus on what matters right now.",
 	"author": "nelakay",

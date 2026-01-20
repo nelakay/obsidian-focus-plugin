@@ -116,7 +116,7 @@ var FocusView = class extends import_obsidian.ItemView {
         e.preventDefault();
         if (this.selectedTaskIndex >= 0 && this.selectedTaskIndex < allTasks.length) {
           const task = allTasks[this.selectedTaskIndex];
-          this.toggleTaskCompleteById(task.id);
+          void this.toggleTaskCompleteById(task.id);
         }
         break;
       case "i":
@@ -124,7 +124,7 @@ var FocusView = class extends import_obsidian.ItemView {
         if (this.selectedTaskIndex >= 0) {
           const task = allTasks[this.selectedTaskIndex];
           if (task.section === "thisWeek") {
-            this.moveTaskById(task.id, "thisWeek", "immediate");
+            void this.moveTaskById(task.id, "thisWeek", "immediate");
           }
         }
         break;
@@ -133,7 +133,7 @@ var FocusView = class extends import_obsidian.ItemView {
         if (this.selectedTaskIndex >= 0) {
           const task = allTasks[this.selectedTaskIndex];
           if (task.section === "immediate") {
-            this.moveTaskById(task.id, "immediate", "thisWeek");
+            void this.moveTaskById(task.id, "immediate", "thisWeek");
           }
         }
         break;
@@ -141,8 +141,8 @@ var FocusView = class extends import_obsidian.ItemView {
         e.preventDefault();
         if (this.selectedTaskIndex >= 0) {
           const task = allTasks[this.selectedTaskIndex];
-          this.moveTaskById(task.id, task.section, "unscheduled");
-          new import_obsidian.Notice("Task moved to Unscheduled");
+          void this.moveTaskById(task.id, task.section, "unscheduled");
+          new import_obsidian.Notice("Task moved to unscheduled");
         }
         break;
       case "Escape":
@@ -424,7 +424,7 @@ var FocusView = class extends import_obsidian.ItemView {
       menu.addItem((item) => {
         item.setTitle("Open Source File").setIcon("file").onClick(async () => {
           const file = this.plugin.app.vault.getAbstractFileByPath(task.sourceFile);
-          if (file) {
+          if (file instanceof import_obsidian.TFile) {
             await this.plugin.app.workspace.getLeaf().openFile(file);
           }
         });
@@ -558,7 +558,7 @@ var PlanningModal = class extends import_obsidian3.Modal {
     input.addEventListener("keydown", async (e) => {
       if (e.key === "Enter" && input.value.trim()) {
         const newGoal = {
-          id: Date.now().toString(36) + Math.random().toString(36).substr(2, 9),
+          id: Date.now().toString(36) + Math.random().toString(36).substring(2, 11),
           title: input.value.trim()
         };
         this.data.goals.push(newGoal);
@@ -959,9 +959,9 @@ var FocusSettingTab = class extends import_obsidian5.PluginSettingTab {
   display() {
     const { containerEl } = this;
     containerEl.empty();
-    containerEl.createEl("h1", { text: "Focus Settings" });
+    new import_obsidian5.Setting(containerEl).setName("Focus settings").setHeading();
     this.renderHotkeysSection(containerEl);
-    containerEl.createEl("h2", { text: "Task Settings" });
+    new import_obsidian5.Setting(containerEl).setName("Task settings").setHeading();
     new import_obsidian5.Setting(containerEl).setName("Task file path").setDesc("Path to the markdown file that stores your tasks (relative to vault root)").addText(
       (text) => text.setPlaceholder("Focus/tasks.md").setValue(this.plugin.settings.taskFilePath).onChange(async (value) => {
         this.plugin.settings.taskFilePath = value || "Focus/tasks.md";
@@ -975,7 +975,7 @@ var FocusSettingTab = class extends import_obsidian5.PluginSettingTab {
         this.plugin.refreshFocusView();
       })
     );
-    containerEl.createEl("h2", { text: "Vault Task Sync" });
+    new import_obsidian5.Setting(containerEl).setName("Vault task sync").setHeading();
     new import_obsidian5.Setting(containerEl).setName("Sync tasks from vault").setDesc("Pull tasks from other notes in your vault into the Unscheduled backlog").addDropdown(
       (dropdown) => dropdown.addOption("off", "Off - Only use Focus task file").addOption("all", "All - Sync all tasks from vault").addOption("tag", "Tag - Only sync tasks with a specific tag").setValue(this.plugin.settings.vaultSyncMode).onChange(async (value) => {
         this.plugin.settings.vaultSyncMode = value;
@@ -1005,7 +1005,7 @@ var FocusSettingTab = class extends import_obsidian5.PluginSettingTab {
         })
       );
     }
-    containerEl.createEl("h2", { text: "Reminders" });
+    new import_obsidian5.Setting(containerEl).setName("Reminders").setHeading();
     new import_obsidian5.Setting(containerEl).setName("Weekly planning reminder").setDesc("Show a reminder to do weekly planning").addToggle(
       (toggle) => toggle.setValue(this.plugin.settings.planningReminderEnabled).onChange(async (value) => {
         this.plugin.settings.planningReminderEnabled = value;
@@ -1042,11 +1042,7 @@ var FocusSettingTab = class extends import_obsidian5.PluginSettingTab {
         })
       );
     }
-    containerEl.createEl("h2", { text: "Weekly Rollover" });
-    containerEl.createEl("p", {
-      text: "What happens to incomplete tasks when a new week starts",
-      cls: "setting-item-description"
-    });
+    new import_obsidian5.Setting(containerEl).setName("Weekly rollover").setDesc("What happens to incomplete tasks when a new week starts").setHeading();
     new import_obsidian5.Setting(containerEl).setName("Roll over Immediate \u2192 This Week").setDesc("Move incomplete Immediate tasks to This Week on planning day").addToggle(
       (toggle) => toggle.setValue(this.plugin.settings.rolloverImmediateToThisWeek).onChange(async (value) => {
         this.plugin.settings.rolloverImmediateToThisWeek = value;
@@ -1059,18 +1055,14 @@ var FocusSettingTab = class extends import_obsidian5.PluginSettingTab {
         await this.plugin.saveSettings();
       })
     );
-    containerEl.createEl("h2", { text: "About" });
-    containerEl.createEl("p", {
-      text: "Focus is a visibility firewall for your tasks. It helps you focus on what matters NOW by hiding everything else.",
-      cls: "setting-item-description"
-    });
+    new import_obsidian5.Setting(containerEl).setName("About").setDesc("Focus is a visibility firewall for your tasks. It helps you focus on what matters NOW by hiding everything else.").setHeading();
   }
   renderHotkeysSection(containerEl) {
-    containerEl.createEl("h2", { text: "Hotkeys" });
+    new import_obsidian5.Setting(containerEl).setName("Hotkeys").setHeading();
     const commands = [
-      { id: COMMAND_IDS.openFocusView, name: "Open Focus View" },
-      { id: COMMAND_IDS.openPlanningView, name: "Open Planning View" },
-      { id: COMMAND_IDS.quickAddTask, name: "Quick Add Task" }
+      { id: COMMAND_IDS.openFocusView, name: "Open focus view" },
+      { id: COMMAND_IDS.openPlanningView, name: "Open planning view" },
+      { id: COMMAND_IDS.quickAddTask, name: "Quick add task" }
     ];
     for (const cmd of commands) {
       const hotkey = this.getHotkeyForCommand(cmd.id);
@@ -1117,7 +1109,7 @@ var FocusSettingTab = class extends import_obsidian5.PluginSettingTab {
 
 // src/taskParser.ts
 function generateId() {
-  return Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
+  return Date.now().toString(36) + Math.random().toString(36).substring(2, 11);
 }
 function parseTaskLine(line, section) {
   const match = line.match(/^-\s*\[([ xX])\]\s*(.+)$/);
@@ -1252,35 +1244,35 @@ var FocusPlugin = class extends import_obsidian6.Plugin {
   async onload() {
     await this.loadSettings();
     this.registerView(FOCUS_VIEW_TYPE, (leaf) => new FocusView(leaf, this));
-    this.addRibbonIcon("target", "Open Focus", () => {
-      this.activateFocusView();
+    this.addRibbonIcon("target", "Open focus", () => {
+      void this.activateFocusView();
     });
     this.addCommand({
       id: "open-focus-view",
-      name: "Open Focus View",
+      name: "Open focus view",
       callback: () => {
-        this.activateFocusView();
+        void this.activateFocusView();
       }
     });
     this.addCommand({
       id: "open-planning-view",
-      name: "Open Planning View",
+      name: "Open planning view",
       callback: () => {
         this.openPlanningModal();
       }
     });
     this.addCommand({
       id: "quick-add-task",
-      name: "Quick Add Task",
+      name: "Quick add task",
       callback: () => {
         this.openAddTaskModal(true);
       }
     });
     this.addCommand({
       id: "sync-vault-tasks",
-      name: "Sync Tasks from Vault",
+      name: "Sync tasks from vault",
       callback: () => {
-        this.syncVaultTasks();
+        void this.syncVaultTasks();
       }
     });
     this.addSettingTab(new FocusSettingTab(this.app, this));
@@ -1463,7 +1455,7 @@ var FocusPlugin = class extends import_obsidian6.Plugin {
         }
       }
       const newTask = {
-        id: Date.now().toString(36) + Math.random().toString(36).substr(2, 9),
+        id: Date.now().toString(36) + Math.random().toString(36).substring(2, 11),
         title,
         completed: false,
         section
@@ -1537,7 +1529,7 @@ var FocusPlugin = class extends import_obsidian6.Plugin {
           }
         } else if (!isCompleted) {
           const newTask = {
-            id: Date.now().toString(36) + Math.random().toString(36).substr(2, 9) + i,
+            id: Date.now().toString(36) + Math.random().toString(36).substring(2, 11) + i,
             title: taskText,
             completed: false,
             section: "unscheduled",

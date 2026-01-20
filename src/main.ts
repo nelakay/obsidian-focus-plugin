@@ -1,4 +1,4 @@
-import { Notice, Plugin, WorkspaceLeaf, TFile, TFolder, normalizePath } from 'obsidian';
+import { Notice, Plugin, WorkspaceLeaf, TFile, normalizePath } from 'obsidian';
 import {
 	FocusPluginSettings,
 	DEFAULT_SETTINGS,
@@ -28,22 +28,22 @@ export default class FocusPlugin extends Plugin {
 		this.registerView(FOCUS_VIEW_TYPE, (leaf) => new FocusView(leaf, this));
 
 		// Add ribbon icon
-		this.addRibbonIcon('target', 'Open Focus', () => {
-			this.activateFocusView();
+		this.addRibbonIcon('target', 'Open focus', () => {
+			void this.activateFocusView();
 		});
 
 		// Add commands
 		this.addCommand({
 			id: 'open-focus-view',
-			name: 'Open Focus View',
+			name: 'Open focus view',
 			callback: () => {
-				this.activateFocusView();
+				void this.activateFocusView();
 			},
 		});
 
 		this.addCommand({
 			id: 'open-planning-view',
-			name: 'Open Planning View',
+			name: 'Open planning view',
 			callback: () => {
 				this.openPlanningModal();
 			},
@@ -51,7 +51,7 @@ export default class FocusPlugin extends Plugin {
 
 		this.addCommand({
 			id: 'quick-add-task',
-			name: 'Quick Add Task',
+			name: 'Quick add task',
 			callback: () => {
 				this.openAddTaskModal(true); // Default to "Add to This Week" checked
 			},
@@ -59,9 +59,9 @@ export default class FocusPlugin extends Plugin {
 
 		this.addCommand({
 			id: 'sync-vault-tasks',
-			name: 'Sync Tasks from Vault',
+			name: 'Sync tasks from vault',
 			callback: () => {
-				this.syncVaultTasks();
+				void this.syncVaultTasks();
 			},
 		});
 
@@ -296,7 +296,7 @@ export default class FocusPlugin extends Plugin {
 			}
 
 			const newTask: Task = {
-				id: Date.now().toString(36) + Math.random().toString(36).substr(2, 9),
+				id: Date.now().toString(36) + Math.random().toString(36).substring(2, 11),
 				title,
 				completed: false,
 				section: section,
@@ -394,7 +394,7 @@ export default class FocusPlugin extends Plugin {
 				} else if (!isCompleted) {
 					// New uncompleted task - add to Focus
 					const newTask: Task = {
-						id: Date.now().toString(36) + Math.random().toString(36).substr(2, 9) + i,
+						id: Date.now().toString(36) + Math.random().toString(36).substring(2, 11) + i,
 						title: taskText,
 						completed: false,
 						section: 'unscheduled',
