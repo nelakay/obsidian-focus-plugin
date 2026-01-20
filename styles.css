@@ -1,0 +1,515 @@
+/* Focus Plugin Styles */
+
+/* ===== Focus View (Sidebar) ===== */
+
+.focus-view-container {
+	padding: 20px !important;
+	height: 100% !important;
+	overflow-y: auto !important;
+}
+
+.focus-view-container:focus {
+	outline: none !important;
+}
+
+.focus-header {
+	display: flex !important;
+	flex-direction: row !important;
+	justify-content: space-between !important;
+	align-items: center !important;
+	margin-bottom: 20px !important;
+	padding-bottom: 12px !important;
+	border-bottom: 1px solid var(--background-modifier-border) !important;
+	gap: 12px !important;
+}
+
+.focus-title {
+	margin: 0 !important;
+	font-size: 1.3em !important;
+	font-weight: 600 !important;
+	color: var(--text-normal) !important;
+	flex: 1 !important;
+}
+
+.focus-header-add-btn {
+	width: 28px !important;
+	height: 28px !important;
+	min-width: 28px !important;
+	padding: 0 !important;
+	border: none !important;
+	background: transparent !important;
+	color: var(--text-muted) !important;
+	font-size: 20px !important;
+	font-weight: 300 !important;
+	cursor: pointer !important;
+	border-radius: 4px !important;
+	display: flex !important;
+	align-items: center !important;
+	justify-content: center !important;
+	transition: all 0.15s ease !important;
+	flex-shrink: 0 !important;
+}
+
+.focus-header-add-btn:hover {
+	background: var(--background-modifier-hover) !important;
+	color: var(--text-normal) !important;
+}
+
+/* Section Styles */
+.focus-section {
+	margin-bottom: 16px;
+}
+
+.focus-section-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 12px;
+}
+
+.focus-section-title {
+	font-size: 0.85em;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+	color: var(--text-muted);
+}
+
+/* Both section titles same color - removed accent for Immediate */
+
+/* Task List - the drop zone */
+.focus-task-list {
+	min-height: 60px !important;
+	padding: 8px !important;
+	border-radius: 8px !important;
+	background: var(--background-primary-alt) !important;
+	border: 2px dashed transparent !important;
+	transition: all 0.2s ease !important;
+}
+
+/* Immediate section has a subtle accent border */
+.focus-section-immediate .focus-task-list {
+	border-color: color-mix(in srgb, var(--interactive-accent) 20%, transparent);
+}
+
+.focus-task-list.focus-drop-active {
+	background: color-mix(in srgb, var(--interactive-accent) 10%, var(--background-primary-alt));
+	border-color: var(--interactive-accent);
+}
+
+/* Task Item */
+.focus-task {
+	display: flex !important;
+	align-items: center !important;
+	gap: 10px !important;
+	padding: 10px 12px !important;
+	margin-bottom: 6px !important;
+	background: var(--background-primary) !important;
+	border-radius: 8px !important;
+	cursor: pointer !important;
+	transition: all 0.15s ease !important;
+	border: 2px solid transparent !important;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
+}
+
+.focus-task:last-child {
+	margin-bottom: 0 !important;
+}
+
+.focus-task:hover {
+	background: var(--background-secondary) !important;
+	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Keyboard selection */
+.focus-task.focus-task-selected {
+	border-color: var(--interactive-accent) !important;
+	background: var(--background-secondary) !important;
+}
+
+.focus-task.focus-task-dragging {
+	opacity: 0.6 !important;
+	transform: rotate(2deg) !important;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+}
+
+.focus-task.focus-task-completed {
+	opacity: 0.5 !important;
+	background: var(--background-primary) !important;
+}
+
+.focus-task.focus-task-completed .focus-task-title {
+	text-decoration: line-through !important;
+	color: var(--text-muted) !important;
+}
+
+/* Drag Handle */
+.focus-drag-handle {
+	color: var(--text-faint) !important;
+	cursor: grab !important;
+	font-size: 12px !important;
+	user-select: none !important;
+	opacity: 0.5 !important;
+	transition: opacity 0.15s ease !important;
+}
+
+.focus-task:hover .focus-drag-handle {
+	opacity: 1 !important;
+}
+
+.focus-drag-handle:active {
+	cursor: grabbing !important;
+}
+
+/* Checkbox */
+.focus-checkbox {
+	width: 18px !important;
+	height: 18px !important;
+	min-width: 18px !important;
+	cursor: pointer !important;
+	accent-color: var(--interactive-accent);
+}
+
+/* Task Title */
+.focus-task-title {
+	flex: 1;
+	font-size: 14px;
+	color: var(--text-normal);
+	line-height: 1.4;
+}
+
+/* Wiki Links in tasks */
+.focus-wiki-link {
+	color: var(--link-color);
+	text-decoration: none;
+	cursor: pointer;
+	font-weight: 500;
+}
+
+.focus-wiki-link:hover {
+	text-decoration: underline;
+	color: var(--link-color-hover);
+}
+
+/* Source file indicator */
+.focus-source-indicator {
+	font-size: 11px;
+	margin-left: 4px;
+	opacity: 0.6;
+}
+
+/* Empty State */
+.focus-empty-state {
+	padding: 20px 16px;
+	text-align: center;
+	color: var(--text-faint);
+	font-size: 13px;
+}
+
+/* Old add button - kept for compatibility but not used in Focus view */
+.focus-add-button {
+	width: 100%;
+	padding: 12px;
+	margin-top: 8px;
+	background: transparent;
+	border: 2px dashed var(--background-modifier-border);
+	border-radius: 8px;
+	color: var(--text-muted);
+	cursor: pointer;
+	font-size: 14px;
+	transition: all 0.15s ease;
+}
+
+.focus-add-button:hover {
+	background: var(--background-secondary);
+	color: var(--text-normal);
+	border-color: var(--interactive-accent);
+}
+
+/* ===== Add Task Modal ===== */
+
+.focus-add-task-modal {
+	padding: 20px;
+}
+
+.focus-add-task-modal h2 {
+	margin-top: 0;
+	margin-bottom: 16px;
+}
+
+.focus-add-task-modal .setting-item {
+	border-top: none;
+	padding-top: 0;
+}
+
+.focus-add-task-modal input[type="text"] {
+	width: 100%;
+}
+
+/* ===== Planning Modal ===== */
+
+.focus-planning-modal {
+	padding: 24px;
+	max-width: 600px;
+	max-height: 80vh;
+	overflow-y: auto;
+}
+
+.focus-planning-modal h2 {
+	margin-top: 0;
+	margin-bottom: 24px;
+	font-size: 1.4em;
+}
+
+.focus-planning-section {
+	margin-bottom: 28px;
+}
+
+.focus-planning-section h3 {
+	margin: 0 0 12px 0;
+	font-size: 1em;
+	color: var(--text-normal);
+}
+
+.focus-section-header-row {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+}
+
+/* Goals Section */
+.focus-goals-list {
+	margin-bottom: 12px;
+}
+
+.focus-goal-item {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 10px 14px;
+	margin-bottom: 6px;
+	background: var(--background-secondary);
+	border-radius: 8px;
+}
+
+.focus-goal-title {
+	font-size: 14px;
+}
+
+.focus-goal-delete {
+	background: none;
+	border: none;
+	color: var(--text-faint);
+	cursor: pointer;
+	font-size: 18px;
+	padding: 0 4px;
+	line-height: 1;
+}
+
+.focus-goal-delete:hover {
+	color: var(--text-error);
+}
+
+.focus-goal-input {
+	width: 100%;
+	padding: 10px 14px;
+	border: 2px dashed var(--background-modifier-border);
+	border-radius: 8px;
+	background: transparent;
+	color: var(--text-normal);
+	font-size: 14px;
+}
+
+.focus-goal-input:focus {
+	border-color: var(--interactive-accent);
+	outline: none;
+}
+
+/* Progress Section */
+.focus-progress-summary {
+	margin: 0 0 12px 0;
+	color: var(--text-muted);
+	font-size: 13px;
+}
+
+.focus-planning-task-list {
+	margin-top: 8px;
+}
+
+.focus-planning-task {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 10px 14px;
+	margin-bottom: 6px;
+	background: var(--background-secondary);
+	border-radius: 8px;
+}
+
+.focus-task-text {
+	font-size: 14px;
+	flex: 1;
+}
+
+.focus-task-section-badge {
+	font-size: 11px;
+	padding: 3px 10px;
+	background: var(--background-modifier-border);
+	border-radius: 12px;
+	color: var(--text-muted);
+}
+
+.focus-divider {
+	margin: 16px 0;
+	border: none;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+/* Unscheduled Tasks */
+.focus-unscheduled-task {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 10px 14px;
+	margin-bottom: 6px;
+	background: var(--background-secondary);
+	border-radius: 8px;
+}
+
+.focus-task-actions {
+	display: flex;
+	gap: 8px;
+}
+
+.focus-schedule-btn {
+	padding: 5px 12px;
+	font-size: 12px;
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+	border: none;
+	border-radius: 6px;
+	cursor: pointer;
+	font-weight: 500;
+}
+
+.focus-schedule-btn:hover {
+	opacity: 0.9;
+}
+
+.focus-delete-btn {
+	background: none;
+	border: none;
+	color: var(--text-faint);
+	cursor: pointer;
+	font-size: 18px;
+	padding: 0 4px;
+	line-height: 1;
+}
+
+.focus-delete-btn:hover {
+	color: var(--text-error);
+}
+
+/* Planning Actions */
+.focus-planning-actions {
+	margin-top: 24px;
+	padding-top: 16px;
+	border-top: 1px solid var(--background-modifier-border);
+	display: flex;
+	justify-content: flex-end;
+}
+
+/* ===== End of Day Modal ===== */
+
+.focus-end-of-day-modal {
+	padding: 24px;
+	max-width: 500px;
+}
+
+.focus-end-of-day-modal h2 {
+	margin-top: 0;
+	margin-bottom: 8px;
+}
+
+.focus-date-subtitle {
+	color: var(--text-muted);
+	margin: 0 0 24px 0;
+	font-size: 14px;
+}
+
+.focus-review-section {
+	margin-bottom: 24px;
+}
+
+.focus-review-section h3 {
+	margin: 0 0 12px 0;
+	font-size: 1em;
+}
+
+.focus-review-section h4 {
+	margin: 12px 0 8px 0;
+	font-size: 0.9em;
+	color: var(--text-muted);
+}
+
+.focus-progress-text {
+	font-size: 16px;
+	font-weight: 500;
+	margin: 0 0 16px 0;
+}
+
+.focus-completed-list,
+.focus-incomplete-list {
+	margin-top: 8px;
+}
+
+.focus-completed-task {
+	padding: 6px 0;
+	color: var(--text-muted);
+	font-size: 14px;
+}
+
+.focus-incomplete-task-row {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 10px 14px;
+	margin-bottom: 6px;
+	background: var(--background-secondary);
+	border-radius: 8px;
+	font-size: 14px;
+}
+
+.focus-quick-complete-btn {
+	padding: 5px 12px;
+	font-size: 12px;
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+	border: none;
+	border-radius: 6px;
+	cursor: pointer;
+	font-weight: 500;
+}
+
+.focus-quick-complete-btn:hover {
+	opacity: 0.9;
+}
+
+.focus-review-message {
+	margin-top: 20px;
+	padding: 16px;
+	background: var(--background-secondary);
+	border-radius: 8px;
+	text-align: center;
+}
+
+.focus-review-message p {
+	margin: 0;
+	font-size: 15px;
+}
+
+.focus-review-actions {
+	margin-top: 24px;
+	display: flex;
+	justify-content: flex-end;
+}

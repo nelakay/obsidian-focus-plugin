@@ -1,0 +1,21 @@
+# Dependencies
+node_modules/
+
+# Build output (keep main.js for releases)
+# main.js
+
+# IDE
+.idea/
+*.swp
+*.swo
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Debug
+npm-debug.log*
+
+# Test coverage
+coverage/

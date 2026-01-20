@@ -1,0 +1,10 @@
+{
+	"id": "focus-plugin",
+	"name": "Focus",
+	"version": "1.0.0",
+	"minAppVersion": "1.0.0",
+	"description": "A focus enforcer that shows only your immediate tasks and this week's priorities. Not a task manager - a visibility firewall.",
+	"author": "You",
+	"authorUrl": "",
+	"isDesktopOnly": false
+}
