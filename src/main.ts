@@ -334,6 +334,7 @@ export default class FocusPlugin extends Plugin {
 
 	/**
 	 * Scan the vault for tasks and sync them to the Unscheduled backlog
+	 * Also syncs completion status for existing synced tasks
 	 * @param silent - If true, don't show notices (used for auto-sync)
 	 */
 	async syncVaultTasks(silent: boolean = false): Promise<number> {
@@ -346,13 +347,17 @@ export default class FocusPlugin extends Plugin {
 
 		const data = await this.loadTaskData();
 		const taskFilePath = normalizePath(this.settings.taskFilePath);
-		const existingTitles = new Set([
-			...data.tasks.immediate.map(t => t.title),
-			...data.tasks.thisWeek.map(t => t.title),
-			...data.tasks.unscheduled.map(t => t.title),
-		]);
+
+		// Build a map of existing tasks by title for quick lookup
+		const existingTasksByTitle = new Map<string, { task: Task; section: TaskSection }>();
+		for (const section of ['immediate', 'thisWeek', 'unscheduled'] as TaskSection[]) {
+			for (const task of data.tasks[section]) {
+				existingTasksByTitle.set(task.title, { task, section });
+			}
+		}
 
 		let newTasksCount = 0;
+		let syncedCompletions = 0;
 		const files = this.app.vault.getMarkdownFiles();
 
 		for (const file of files) {
@@ -364,53 +369,75 @@ export default class FocusPlugin extends Plugin {
 
 			for (let i = 0; i < lines.length; i++) {
 				const line = lines[i];
-				// Match uncompleted tasks: - [ ] task text
-				const match = line.match(/^[\s]*-\s*\[\s*\]\s*(.+)$/);
+				// Match both completed and uncompleted tasks: - [ ] or - [x]
+				const match = line.match(/^[\s]*-\s*\[([xX\s])\]\s*(.+)$/);
 				if (!match) continue;
 
-				const taskText = match[1].trim();
+				const isCompleted = match[1].toLowerCase() === 'x';
+				const taskText = match[2].trim();
 
 				// If tag mode, check for the tag
 				if (this.settings.vaultSyncMode === 'tag') {
 					if (!taskText.includes(this.settings.vaultSyncTag)) continue;
 				}
 
-				// Skip if task already exists (by title)
-				if (existingTitles.has(taskText)) continue;
+				// Check if this task already exists in Focus
+				const existing = existingTasksByTitle.get(taskText);
 
-				// Add the task
-				const newTask: Task = {
-					id: Date.now().toString(36) + Math.random().toString(36).substr(2, 9) + i,
-					title: taskText,
-					completed: false,
-					section: 'unscheduled',
-					sourceFile: file.path,
-					sourceLine: i + 1,
-				};
+				if (existing) {
+					// Task exists - sync completion status from vault to Focus
+					if (existing.task.sourceFile === file.path && existing.task.completed !== isCompleted) {
+						existing.task.completed = isCompleted;
+						existing.task.sourceLine = i + 1; // Update line number
+						syncedCompletions++;
+					}
+				} else if (!isCompleted) {
+					// New uncompleted task - add to Focus
+					const newTask: Task = {
+						id: Date.now().toString(36) + Math.random().toString(36).substr(2, 9) + i,
+						title: taskText,
+						completed: false,
+						section: 'unscheduled',
+						sourceFile: file.path,
+						sourceLine: i + 1,
+					};
 
-				data.tasks.unscheduled.push(newTask);
-				existingTitles.add(taskText);
-				newTasksCount++;
+					data.tasks.unscheduled.push(newTask);
+					existingTasksByTitle.set(taskText, { task: newTask, section: 'unscheduled' });
+					newTasksCount++;
+				}
 			}
 		}
 
-		if (newTasksCount > 0) {
+		if (newTasksCount > 0 || syncedCompletions > 0) {
 			await this.saveTaskData(data);
 			this.refreshFocusView();
 		}
 
 		if (!silent) {
-			new Notice(`Synced ${newTasksCount} new task${newTasksCount === 1 ? '' : 's'} from vault`);
+			const messages: string[] = [];
+			if (newTasksCount > 0) {
+				messages.push(`${newTasksCount} new task${newTasksCount === 1 ? '' : 's'}`);
+			}
+			if (syncedCompletions > 0) {
+				messages.push(`${syncedCompletions} completion${syncedCompletions === 1 ? '' : 's'} synced`);
+			}
+			if (messages.length > 0) {
+				new Notice(`Vault sync: ${messages.join(', ')}`);
+			} else {
+				new Notice('Vault sync: Already up to date');
+			}
 		}
-		return newTasksCount;
+		return newTasksCount + syncedCompletions;
 	}
 
 	/**
 	 * Sync task completion status back to the source file
 	 * Called when a task with sourceFile is completed/uncompleted
+	 * Uses content matching instead of line numbers for reliability
 	 */
 	async syncTaskCompletionToSource(task: Task): Promise<void> {
-		if (!task.sourceFile || !task.sourceLine) return;
+		if (!task.sourceFile) return;
 
 		const file = this.app.vault.getAbstractFileByPath(task.sourceFile);
 		if (!(file instanceof TFile)) return;
@@ -418,24 +445,47 @@ export default class FocusPlugin extends Plugin {
 		try {
 			const content = await this.app.vault.read(file);
 			const lines = content.split('\n');
-			const lineIndex = task.sourceLine - 1; // sourceLine is 1-indexed
 
-			if (lineIndex < 0 || lineIndex >= lines.length) return;
+			// Find the task by matching its title content (more reliable than line number)
+			// We need to find a line that contains the task title in a checkbox format
+			const taskTitle = task.title.trim();
+			let foundIndex = -1;
 
-			const line = lines[lineIndex];
+			for (let i = 0; i < lines.length; i++) {
+				const line = lines[i];
+				// Match both completed and uncompleted checkboxes
+				const match = line.match(/^(\s*-\s*)\[([xX\s])\]\s*(.+)$/);
+				if (match) {
+					const lineTaskText = match[3].trim();
+					if (lineTaskText === taskTitle) {
+						foundIndex = i;
+						break;
+					}
+				}
+			}
+
+			if (foundIndex === -1) {
+				console.warn('Focus: Could not find task in source file:', task.title);
+				return;
+			}
+
+			const line = lines[foundIndex];
+			const originalLine = line;
 
 			// Update the checkbox based on completion status
 			if (task.completed) {
 				// Change [ ] to [x]
-				lines[lineIndex] = line.replace(/^(\s*-\s*)\[\s*\]/, '$1[x]');
+				lines[foundIndex] = line.replace(/^(\s*-\s*)\[\s*\]/, '$1[x]');
 			} else {
 				// Change [x] to [ ]
-				lines[lineIndex] = line.replace(/^(\s*-\s*)\[[xX]\]/, '$1[ ]');
+				lines[foundIndex] = line.replace(/^(\s*-\s*)\[[xX]\]/, '$1[ ]');
 			}
 
 			// Only write if something changed
-			if (lines[lineIndex] !== line) {
+			if (lines[foundIndex] !== originalLine) {
 				await this.app.vault.modify(file, lines.join('\n'));
+				// Update the sourceLine to the current position
+				task.sourceLine = foundIndex + 1;
 			}
 		} catch (error) {
 			console.error('Focus: Failed to sync task completion to source file', error);

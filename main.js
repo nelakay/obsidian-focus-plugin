@@ -1491,6 +1491,7 @@ var FocusPlugin = class extends import_obsidian6.Plugin {
   }
   /**
    * Scan the vault for tasks and sync them to the Unscheduled backlog
+   * Also syncs completion status for existing synced tasks
    * @param silent - If true, don't show notices (used for auto-sync)
    */
   async syncVaultTasks(silent = false) {
@@ -1502,12 +1503,14 @@ var FocusPlugin = class extends import_obsidian6.Plugin {
     }
     const data = await this.loadTaskData();
     const taskFilePath = (0, import_obsidian6.normalizePath)(this.settings.taskFilePath);
-    const existingTitles = /* @__PURE__ */ new Set([
-      ...data.tasks.immediate.map((t) => t.title),
-      ...data.tasks.thisWeek.map((t) => t.title),
-      ...data.tasks.unscheduled.map((t) => t.title)
-    ]);
+    const existingTasksByTitle = /* @__PURE__ */ new Map();
+    for (const section of ["immediate", "thisWeek", "unscheduled"]) {
+      for (const task of data.tasks[section]) {
+        existingTasksByTitle.set(task.title, { task, section });
+      }
+    }
     let newTasksCount = 0;
+    let syncedCompletions = 0;
     const files = this.app.vault.getMarkdownFiles();
     for (const file of files) {
       if (file.path === taskFilePath)
@@ -1516,44 +1519,64 @@ var FocusPlugin = class extends import_obsidian6.Plugin {
       const lines = content.split("\n");
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
-        const match = line.match(/^[\s]*-\s*\[\s*\]\s*(.+)$/);
+        const match = line.match(/^[\s]*-\s*\[([xX\s])\]\s*(.+)$/);
         if (!match)
           continue;
-        const taskText = match[1].trim();
+        const isCompleted = match[1].toLowerCase() === "x";
+        const taskText = match[2].trim();
         if (this.settings.vaultSyncMode === "tag") {
           if (!taskText.includes(this.settings.vaultSyncTag))
             continue;
         }
-        if (existingTitles.has(taskText))
-          continue;
-        const newTask = {
-          id: Date.now().toString(36) + Math.random().toString(36).substr(2, 9) + i,
-          title: taskText,
-          completed: false,
-          section: "unscheduled",
-          sourceFile: file.path,
-          sourceLine: i + 1
-        };
-        data.tasks.unscheduled.push(newTask);
-        existingTitles.add(taskText);
-        newTasksCount++;
+        const existing = existingTasksByTitle.get(taskText);
+        if (existing) {
+          if (existing.task.sourceFile === file.path && existing.task.completed !== isCompleted) {
+            existing.task.completed = isCompleted;
+            existing.task.sourceLine = i + 1;
+            syncedCompletions++;
+          }
+        } else if (!isCompleted) {
+          const newTask = {
+            id: Date.now().toString(36) + Math.random().toString(36).substr(2, 9) + i,
+            title: taskText,
+            completed: false,
+            section: "unscheduled",
+            sourceFile: file.path,
+            sourceLine: i + 1
+          };
+          data.tasks.unscheduled.push(newTask);
+          existingTasksByTitle.set(taskText, { task: newTask, section: "unscheduled" });
+          newTasksCount++;
+        }
       }
     }
-    if (newTasksCount > 0) {
+    if (newTasksCount > 0 || syncedCompletions > 0) {
       await this.saveTaskData(data);
       this.refreshFocusView();
     }
     if (!silent) {
-      new import_obsidian6.Notice(`Synced ${newTasksCount} new task${newTasksCount === 1 ? "" : "s"} from vault`);
+      const messages = [];
+      if (newTasksCount > 0) {
+        messages.push(`${newTasksCount} new task${newTasksCount === 1 ? "" : "s"}`);
+      }
+      if (syncedCompletions > 0) {
+        messages.push(`${syncedCompletions} completion${syncedCompletions === 1 ? "" : "s"} synced`);
+      }
+      if (messages.length > 0) {
+        new import_obsidian6.Notice(`Vault sync: ${messages.join(", ")}`);
+      } else {
+        new import_obsidian6.Notice("Vault sync: Already up to date");
+      }
     }
-    return newTasksCount;
+    return newTasksCount + syncedCompletions;
   }
   /**
    * Sync task completion status back to the source file
    * Called when a task with sourceFile is completed/uncompleted
+   * Uses content matching instead of line numbers for reliability
    */
   async syncTaskCompletionToSource(task) {
-    if (!task.sourceFile || !task.sourceLine)
+    if (!task.sourceFile)
       return;
     const file = this.app.vault.getAbstractFileByPath(task.sourceFile);
     if (!(file instanceof import_obsidian6.TFile))
@@ -1561,17 +1584,33 @@ var FocusPlugin = class extends import_obsidian6.Plugin {
     try {
       const content = await this.app.vault.read(file);
       const lines = content.split("\n");
-      const lineIndex = task.sourceLine - 1;
-      if (lineIndex < 0 || lineIndex >= lines.length)
-        return;
-      const line = lines[lineIndex];
-      if (task.completed) {
-        lines[lineIndex] = line.replace(/^(\s*-\s*)\[\s*\]/, "$1[x]");
-      } else {
-        lines[lineIndex] = line.replace(/^(\s*-\s*)\[[xX]\]/, "$1[ ]");
+      const taskTitle = task.title.trim();
+      let foundIndex = -1;
+      for (let i = 0; i < lines.length; i++) {
+        const line2 = lines[i];
+        const match = line2.match(/^(\s*-\s*)\[([xX\s])\]\s*(.+)$/);
+        if (match) {
+          const lineTaskText = match[3].trim();
+          if (lineTaskText === taskTitle) {
+            foundIndex = i;
+            break;
+          }
+        }
       }
-      if (lines[lineIndex] !== line) {
+      if (foundIndex === -1) {
+        console.warn("Focus: Could not find task in source file:", task.title);
+        return;
+      }
+      const line = lines[foundIndex];
+      const originalLine = line;
+      if (task.completed) {
+        lines[foundIndex] = line.replace(/^(\s*-\s*)\[\s*\]/, "$1[x]");
+      } else {
+        lines[foundIndex] = line.replace(/^(\s*-\s*)\[[xX]\]/, "$1[ ]");
+      }
+      if (lines[foundIndex] !== originalLine) {
         await this.app.vault.modify(file, lines.join("\n"));
+        task.sourceLine = foundIndex + 1;
       }
     } catch (error) {
       console.error("Focus: Failed to sync task completion to source file", error);
