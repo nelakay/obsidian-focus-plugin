@@ -56,7 +56,7 @@ export class FocusSettingTab extends PluginSettingTab {
 			.setDesc('Pull tasks from other notes in your vault into the unscheduled backlog')
 			.addDropdown((dropdown) =>
 				dropdown
-					.addOption('off', 'Off - only use Focus task file')
+					.addOption('off', 'Off - only use the Focus task file')
 					.addOption('all', 'All - sync all tasks from vault')
 					.addOption('tag', 'Tag - only sync tasks with a specific tag')
 					.setValue(this.plugin.settings.vaultSyncMode)

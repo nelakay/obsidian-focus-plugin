@@ -988,7 +988,7 @@ var FocusSettingTab = class extends import_obsidian5.PluginSettingTab {
     );
     new import_obsidian5.Setting(containerEl).setName("Vault task sync").setHeading();
     new import_obsidian5.Setting(containerEl).setName("Sync tasks from vault").setDesc("Pull tasks from other notes in your vault into the unscheduled backlog").addDropdown(
-      (dropdown) => dropdown.addOption("off", "Off - only use Focus task file").addOption("all", "All - sync all tasks from vault").addOption("tag", "Tag - only sync tasks with a specific tag").setValue(this.plugin.settings.vaultSyncMode).onChange(async (value) => {
+      (dropdown) => dropdown.addOption("off", "Off - only use the Focus task file").addOption("all", "All - sync all tasks from vault").addOption("tag", "Tag - only sync tasks with a specific tag").setValue(this.plugin.settings.vaultSyncMode).onChange(async (value) => {
         this.plugin.settings.vaultSyncMode = value;
         await this.plugin.saveSettings();
         this.display();
