@@ -71,6 +71,7 @@ var FocusView = class extends import_obsidian.ItemView {
     this.selectedSection = null;
     this.data = null;
     this.plugin = plugin;
+    this.containerEl.addClass("focus-plugin-view");
   }
   getViewType() {
     return FOCUS_VIEW_TYPE;
@@ -84,10 +85,7 @@ var FocusView = class extends import_obsidian.ItemView {
   async onOpen() {
     this.containerEl.addEventListener("keydown", this.handleKeyDown.bind(this));
     this.containerEl.setAttribute("tabindex", "0");
-    const container = this.containerEl.children[1];
-    if (container) {
-      container.addClass("focus-view-container");
-    }
+    this.containerEl.addClass("focus-plugin-view");
     await this.render();
   }
   async onClose() {
@@ -1408,17 +1406,20 @@ var FocusPlugin = class extends import_obsidian6.Plugin {
   async ensureTaskFileExists() {
     const filePath = (0, import_obsidian6.normalizePath)(this.settings.taskFilePath);
     const file = this.app.vault.getAbstractFileByPath(filePath);
-    if (!file) {
+    if (file)
+      return;
+    try {
       const dir = filePath.substring(0, filePath.lastIndexOf("/"));
-      if (dir) {
-        const dirExists = this.app.vault.getAbstractFileByPath(dir);
-        if (!dirExists) {
-          await this.app.vault.createFolder(dir);
-        }
+      if (dir && !this.app.vault.getAbstractFileByPath(dir)) {
+        await this.app.vault.createFolder(dir);
       }
+    } catch (e) {
+    }
+    try {
       const defaultContent = createDefaultTaskFile();
       await this.app.vault.create(filePath, defaultContent);
       new import_obsidian6.Notice(`Created task file: ${filePath}`);
+    } catch (e) {
     }
   }
   async loadTaskData() {

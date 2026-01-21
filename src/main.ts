@@ -222,20 +222,24 @@ export default class FocusPlugin extends Plugin {
 		const filePath = normalizePath(this.settings.taskFilePath);
 		const file = this.app.vault.getAbstractFileByPath(filePath);
 
-		if (!file) {
-			// Create the directory if it doesn't exist
-			const dir = filePath.substring(0, filePath.lastIndexOf('/'));
-			if (dir) {
-				const dirExists = this.app.vault.getAbstractFileByPath(dir);
-				if (!dirExists) {
-					await this.app.vault.createFolder(dir);
-				}
-			}
+		if (file) return; // File already exists
 
-			// Create the task file with default content
+		try {
+			// Create parent folder if needed
+			const dir = filePath.substring(0, filePath.lastIndexOf('/'));
+			if (dir && !this.app.vault.getAbstractFileByPath(dir)) {
+				await this.app.vault.createFolder(dir);
+			}
+		} catch {
+			// Folder may already exist, continue
+		}
+
+		try {
 			const defaultContent = createDefaultTaskFile();
 			await this.app.vault.create(filePath, defaultContent);
 			new Notice(`Created task file: ${filePath}`);
+		} catch {
+			// File may already exist
 		}
 	}
 

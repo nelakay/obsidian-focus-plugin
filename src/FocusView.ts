@@ -13,6 +13,8 @@ export class FocusView extends ItemView {
 	constructor(leaf: WorkspaceLeaf, plugin: FocusPlugin) {
 		super(leaf);
 		this.plugin = plugin;
+		// Add class immediately in constructor so styles apply on Obsidian restart
+		this.containerEl.addClass('focus-plugin-view');
 	}
 
 	getViewType(): string {
@@ -32,11 +34,8 @@ export class FocusView extends ItemView {
 		this.containerEl.addEventListener('keydown', this.handleKeyDown.bind(this));
 		this.containerEl.setAttribute('tabindex', '0');
 
-		// Ensure the content container has the correct class immediately
-		const container = this.containerEl.children[1];
-		if (container) {
-			container.addClass('focus-view-container');
-		}
+		// Add class to main container for styling scope
+		this.containerEl.addClass('focus-plugin-view');
 
 		await this.render();
 	}

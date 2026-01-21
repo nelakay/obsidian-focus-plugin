@@ -2,8 +2,15 @@
 
 /* ===== Focus View (Sidebar) ===== */
 
+/* Main container class added to containerEl */
+.focus-plugin-view .view-content {
+	padding: 8px !important;
+	height: 100% !important;
+	overflow-y: auto !important;
+}
+
 .focus-view-container {
-	padding: 20px !important;
+	padding: 8px !important;
 	height: 100% !important;
 	overflow-y: auto !important;
 }
@@ -80,7 +87,6 @@
 /* Task List - the drop zone */
 .focus-task-list {
 	min-height: 60px !important;
-	padding: 8px !important;
 	border-radius: 8px !important;
 	background: var(--background-primary-alt) !important;
 	border: 2px dashed transparent !important;
@@ -98,11 +104,12 @@
 }
 
 /* Task Item */
-.focus-task {
+.focus-task,
+.focus-plugin-view .focus-task {
 	display: flex !important;
 	align-items: center !important;
 	gap: 10px !important;
-	padding: 10px 12px !important;
+	padding: 2px !important;
 	margin-bottom: 3px !important;
 	background: var(--background-primary) !important;
 	border-radius: 8px !important;
