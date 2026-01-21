@@ -973,7 +973,7 @@ var FocusSettingTab = class extends import_obsidian5.PluginSettingTab {
     containerEl.empty();
     this.renderHotkeysSection(containerEl);
     new import_obsidian5.Setting(containerEl).setName("Tasks").setHeading();
-    new import_obsidian5.Setting(containerEl).setName("Task file path").setDesc("Path to the markdown file that stores your tasks (relative to vault root)").addText(
+    new import_obsidian5.Setting(containerEl).setName("Task file path").setDesc("The path to the markdown file that stores your tasks (relative to vault root)").addText(
       (text) => text.setPlaceholder("Focus/tasks.md").setValue(this.plugin.settings.taskFilePath).onChange(async (value) => {
         this.plugin.settings.taskFilePath = value || "Focus/tasks.md";
         await this.plugin.saveSettings();

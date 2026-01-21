@@ -22,7 +22,7 @@ export class FocusSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName('Task file path')
-			.setDesc('Path to the markdown file that stores your tasks (relative to vault root)')
+			.setDesc('The path to the markdown file that stores your tasks (relative to vault root)')
 			.addText((text) =>
 				text
 					.setPlaceholder('Focus/tasks.md')
