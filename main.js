@@ -942,9 +942,9 @@ var EndOfDayModal = class extends import_obsidian4.Modal {
     if (immediateTasks.length === 0) {
       messageSection.createEl("p", { text: "Plan your focus for tomorrow!" });
     } else if (completedImmediate.length === immediateTasks.length) {
-      messageSection.createEl("p", { text: "\u{1F389} Great job! you completed everything." });
+      messageSection.createEl("p", { text: "\u{1F389} Great job! You completed everything." });
     } else if (completedImmediate.length >= immediateTasks.length / 2) {
-      messageSection.createEl("p", { text: "Good progress today. the rest can wait for tomorrow." });
+      messageSection.createEl("p", { text: "Good progress today. The rest can wait for tomorrow." });
     } else {
       messageSection.createEl("p", { text: "Every step counts. Tomorrow is a new day." });
     }
