@@ -14,13 +14,13 @@ export class FocusSettingTab extends PluginSettingTab {
 		const { containerEl } = this;
 		containerEl.empty();
 
-		new Setting(containerEl).setName('Focus settings').setHeading();
+		new Setting(containerEl).setName('Hotkeys').setHeading();
 
 		// ===== HOTKEYS SECTION =====
 		this.renderHotkeysSection(containerEl);
 
 		// ===== TASK SETTINGS =====
-		new Setting(containerEl).setName('Task settings').setHeading();
+		new Setting(containerEl).setName('Tasks').setHeading();
 
 		new Setting(containerEl)
 			.setName('Task file path')
@@ -102,7 +102,7 @@ export class FocusSettingTab extends PluginSettingTab {
 						.onClick(async () => {
 							button.setButtonText('Syncing...');
 							button.setDisabled(true);
-							const count = await this.plugin.syncVaultTasks();
+							await this.plugin.syncVaultTasks();
 							button.setButtonText('Sync Tasks');
 							button.setDisabled(false);
 						})
@@ -213,11 +213,11 @@ export class FocusSettingTab extends PluginSettingTab {
 	}
 
 	private renderHotkeysSection(containerEl: HTMLElement): void {
-		new Setting(containerEl).setName('Hotkeys').setHeading();
+		new Setting(containerEl).setName('Keyboard shortcuts').setHeading();
 
 		const commands = [
-			{ id: COMMAND_IDS.openFocusView, name: 'Open focus view' },
-			{ id: COMMAND_IDS.openPlanningView, name: 'Open planning view' },
+			{ id: COMMAND_IDS.openFocusView, name: 'Open view' },
+			{ id: COMMAND_IDS.openPlanningView, name: 'Open planning' },
 			{ id: COMMAND_IDS.quickAddTask, name: 'Quick add task' },
 		];
 

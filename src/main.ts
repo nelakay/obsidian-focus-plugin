@@ -35,7 +35,7 @@ export default class FocusPlugin extends Plugin {
 		// Add commands
 		this.addCommand({
 			id: 'open-focus-view',
-			name: 'Open focus view',
+			name: 'Open view',
 			callback: () => {
 				void this.activateFocusView();
 			},
@@ -43,7 +43,7 @@ export default class FocusPlugin extends Plugin {
 
 		this.addCommand({
 			id: 'open-planning-view',
-			name: 'Open planning view',
+			name: 'Open planning',
 			callback: () => {
 				this.openPlanningModal();
 			},
@@ -139,8 +139,8 @@ export default class FocusPlugin extends Plugin {
 			clearTimeout(this.syncDebounceTimeout);
 		}
 
-		this.syncDebounceTimeout = setTimeout(async () => {
-			await this.syncVaultTasks(true); // silent mode
+		this.syncDebounceTimeout = setTimeout(() => {
+			void this.syncVaultTasks(true); // silent mode
 		}, 2000);
 	}
 
