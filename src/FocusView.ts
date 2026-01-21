@@ -31,6 +31,13 @@ export class FocusView extends ItemView {
 		// Setup keyboard navigation
 		this.containerEl.addEventListener('keydown', this.handleKeyDown.bind(this));
 		this.containerEl.setAttribute('tabindex', '0');
+
+		// Ensure the content container has the correct class immediately
+		const container = this.containerEl.children[1];
+		if (container) {
+			container.addClass('focus-view-container');
+		}
+
 		await this.render();
 	}
 
