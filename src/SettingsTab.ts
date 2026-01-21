@@ -101,7 +101,7 @@ export class FocusSettingTab extends PluginSettingTab {
 							button.setButtonText('Syncing...');
 							button.setDisabled(true);
 							await this.plugin.syncVaultTasks();
-							button.setButtonText('Sync Tasks');
+							button.setButtonText('Sync tasks');
 							button.setDisabled(false);
 						})
 				);
@@ -180,8 +180,8 @@ export class FocusSettingTab extends PluginSettingTab {
 			.setHeading();
 
 		new Setting(containerEl)
-			.setName('Roll over Immediate → This Week')
-			.setDesc('Move incomplete Immediate tasks to This Week on planning day')
+			.setName('Roll over Immediate → This week')
+			.setDesc('Move incomplete Immediate tasks to This week on planning day')
 			.addToggle((toggle) =>
 				toggle
 					.setValue(this.plugin.settings.rolloverImmediateToThisWeek)
@@ -192,8 +192,8 @@ export class FocusSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName('Roll over This Week → Unscheduled')
-			.setDesc('Move incomplete This Week tasks to Unscheduled on planning day')
+			.setName('Roll over This week → Unscheduled')
+			.setDesc('Move incomplete This week tasks to Unscheduled on planning day')
 			.addToggle((toggle) =>
 				toggle
 					.setValue(this.plugin.settings.rolloverThisWeekToUnscheduled)

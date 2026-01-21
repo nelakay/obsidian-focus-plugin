@@ -290,7 +290,7 @@ export default class FocusPlugin extends Plugin {
 			if (section === 'immediate') {
 				const activeImmediate = data.tasks.immediate.filter(t => !t.completed);
 				if (activeImmediate.length >= this.settings.maxImmediateTasks) {
-					new Notice(`Maximum ${this.settings.maxImmediateTasks} tasks in Immediate. Move one out first.`);
+					new Notice(`Maximum ${this.settings.maxImmediateTasks} tasks in immediate. Move one out first.`);
 					return;
 				}
 			}
@@ -310,7 +310,7 @@ export default class FocusPlugin extends Plugin {
 			const sectionName = section === 'immediate'
 				? 'Immediate'
 				: section === 'thisWeek'
-					? 'This Week'
+					? 'This week'
 					: 'Unscheduled';
 			new Notice(`Task added to ${sectionName}`);
 		});

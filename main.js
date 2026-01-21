@@ -55,9 +55,9 @@ var DEFAULT_SETTINGS = {
 };
 var FOCUS_VIEW_TYPE = "focus-view";
 var COMMAND_IDS = {
-  openFocusView: "focus-plugin:open-focus-view",
-  openPlanningView: "focus-plugin:open-planning-view",
-  quickAddTask: "focus-plugin:quick-add-task"
+  openFocusView: "productivity-focus:open-view",
+  openPlanningView: "productivity-focus:open-planning",
+  quickAddTask: "productivity-focus:quick-add-task"
 };
 
 // src/FocusView.ts
@@ -84,6 +84,10 @@ var FocusView = class extends import_obsidian.ItemView {
   async onOpen() {
     this.containerEl.addEventListener("keydown", this.handleKeyDown.bind(this));
     this.containerEl.setAttribute("tabindex", "0");
+    const container = this.containerEl.children[1];
+    if (container) {
+      container.addClass("focus-view-container");
+    }
     await this.render();
   }
   async onClose() {
@@ -192,7 +196,7 @@ var FocusView = class extends import_obsidian.ItemView {
     if (toSection === "immediate") {
       const activeImmediate = this.data.tasks.immediate.filter((t) => !t.completed);
       if (activeImmediate.length >= this.plugin.settings.maxImmediateTasks) {
-        new import_obsidian.Notice(`Maximum ${this.plugin.settings.maxImmediateTasks} tasks in Immediate.`);
+        new import_obsidian.Notice(`Maximum ${this.plugin.settings.maxImmediateTasks} tasks in immediate.`);
         return;
       }
     }
@@ -214,17 +218,17 @@ var FocusView = class extends import_obsidian.ItemView {
     container.addClass("focus-view-container");
     this.data = await this.plugin.loadTaskData();
     const header = container.createEl("div", { cls: "focus-header" });
-    header.createEl("h2", { text: "Focus Mode", cls: "focus-title" });
+    header.createEl("h2", { text: "Focus mode", cls: "focus-title" });
     const addButton = header.createEl("button", {
       text: "+",
       cls: "focus-header-add-btn",
-      attr: { title: "Add Task" }
+      attr: { title: "Add task" }
     });
     addButton.addEventListener("click", () => {
       this.plugin.openAddTaskModal(true);
     });
     this.renderSection(container, "Immediate", "immediate", this.data.tasks.immediate, this.data);
-    this.renderSection(container, "This Week", "thisWeek", this.data.tasks.thisWeek, this.data);
+    this.renderSection(container, "This week", "thisWeek", this.data.tasks.thisWeek, this.data);
     this.updateSelection();
   }
   renderSection(container, title, section, tasks, data) {
@@ -272,8 +276,8 @@ var FocusView = class extends import_obsidian.ItemView {
       cls: "focus-checkbox"
     });
     checkbox.checked = task.completed;
-    checkbox.addEventListener("change", async () => {
-      await this.toggleTaskComplete(task, data);
+    checkbox.addEventListener("change", () => {
+      void this.toggleTaskComplete(task, data);
     });
     const titleEl = taskEl.createEl("span", { cls: "focus-task-title" });
     this.renderTaskTitle(titleEl, task.title);
@@ -310,10 +314,10 @@ var FocusView = class extends import_obsidian.ItemView {
         cls: "focus-wiki-link",
         href: "#"
       });
-      linkEl.addEventListener("click", async (e) => {
+      linkEl.addEventListener("click", (e) => {
         e.preventDefault();
         e.stopPropagation();
-        await this.plugin.openLinkedNote(`[[${notePath}]]`);
+        void this.plugin.openLinkedNote(`[[${notePath}]]`);
       });
       lastIndex = match.index + match[0].length;
     }
@@ -351,7 +355,7 @@ var FocusView = class extends import_obsidian.ItemView {
     listEl.addEventListener("dragleave", () => {
       listEl.removeClass("focus-drop-active");
     });
-    listEl.addEventListener("drop", async (e) => {
+    listEl.addEventListener("drop", (e) => {
       e.preventDefault();
       listEl.removeClass("focus-drop-active");
       if (!this.draggedTask || this.draggedFromSection === section)
@@ -359,11 +363,11 @@ var FocusView = class extends import_obsidian.ItemView {
       if (section === "immediate") {
         const activeImmediate = data.tasks.immediate.filter((t) => !t.completed);
         if (activeImmediate.length >= this.plugin.settings.maxImmediateTasks) {
-          new import_obsidian.Notice(`Maximum ${this.plugin.settings.maxImmediateTasks} tasks in Immediate. Remove one first.`);
+          new import_obsidian.Notice(`Maximum ${this.plugin.settings.maxImmediateTasks} tasks in immediate. Remove one first.`);
           return;
         }
       }
-      await this.moveTask(this.draggedTask, this.draggedFromSection, section, data);
+      void this.moveTask(this.draggedTask, this.draggedFromSection, section, data);
     });
   }
   async toggleTaskComplete(task, data) {
@@ -387,57 +391,59 @@ var FocusView = class extends import_obsidian.ItemView {
   showContextMenu(e, task, section, data) {
     const menu = new import_obsidian.Menu();
     menu.addItem((item) => {
-      item.setTitle(task.completed ? "Mark Incomplete" : "Mark Complete").setIcon(task.completed ? "circle" : "check-circle").onClick(async () => {
-        await this.toggleTaskComplete(task, data);
+      item.setTitle(task.completed ? "Mark incomplete" : "Mark complete").setIcon(task.completed ? "circle" : "check-circle").onClick(() => {
+        void this.toggleTaskComplete(task, data);
       });
     });
     menu.addSeparator();
     if (section === "thisWeek" && !task.completed) {
       menu.addItem((item) => {
-        item.setTitle("Move to Immediate").setIcon("arrow-up").onClick(async () => {
+        item.setTitle("Move to immediate").setIcon("arrow-up").onClick(() => {
           const activeImmediate = data.tasks.immediate.filter((t) => !t.completed);
           if (activeImmediate.length >= this.plugin.settings.maxImmediateTasks) {
-            new import_obsidian.Notice(`Maximum ${this.plugin.settings.maxImmediateTasks} tasks in Immediate.`);
+            new import_obsidian.Notice(`Maximum ${this.plugin.settings.maxImmediateTasks} tasks in immediate.`);
             return;
           }
-          await this.moveTask(task, section, "immediate", data);
+          void this.moveTask(task, section, "immediate", data);
         });
       });
     }
     if (section === "immediate" && !task.completed) {
       menu.addItem((item) => {
-        item.setTitle("Move to This Week").setIcon("arrow-down").onClick(async () => {
-          await this.moveTask(task, section, "thisWeek", data);
+        item.setTitle("Move to this week").setIcon("arrow-down").onClick(() => {
+          void this.moveTask(task, section, "thisWeek", data);
         });
       });
     }
     menu.addSeparator();
     if (!task.completed) {
       menu.addItem((item) => {
-        item.setTitle("Deprioritize").setIcon("arrow-down-to-line").onClick(async () => {
-          await this.moveTask(task, section, "unscheduled", data);
-          new import_obsidian.Notice("Task moved to backlog.");
+        item.setTitle("Deprioritize").setIcon("arrow-down-to-line").onClick(() => {
+          void this.moveTask(task, section, "unscheduled", data).then(() => {
+            new import_obsidian.Notice("Task moved to backlog.");
+          });
         });
       });
     }
     if (task.sourceFile) {
       menu.addItem((item) => {
-        item.setTitle("Open Source File").setIcon("file").onClick(async () => {
+        item.setTitle("Open source file").setIcon("file").onClick(() => {
           const file = this.plugin.app.vault.getAbstractFileByPath(task.sourceFile);
           if (file instanceof import_obsidian.TFile) {
-            await this.plugin.app.workspace.getLeaf().openFile(file);
+            void this.plugin.app.workspace.getLeaf().openFile(file);
           }
         });
       });
     }
     menu.addItem((item) => {
-      item.setTitle("Delete").setIcon("trash").onClick(async () => {
+      item.setTitle("Delete").setIcon("trash").onClick(() => {
         const fromIndex = data.tasks[section].findIndex((t) => t.id === task.id);
         if (fromIndex > -1) {
           data.tasks[section].splice(fromIndex, 1);
-          await this.plugin.saveTaskData(data);
-          await this.render();
-          new import_obsidian.Notice("Task deleted");
+          void this.plugin.saveTaskData(data).then(() => {
+            void this.render();
+            new import_obsidian.Notice("Task deleted");
+          });
         }
       });
     });
@@ -460,7 +466,7 @@ var AddTaskModal = class extends import_obsidian2.Modal {
     const { contentEl } = this;
     contentEl.empty();
     contentEl.addClass("focus-add-task-modal");
-    contentEl.createEl("h2", { text: "Add Task" });
+    contentEl.createEl("h2", { text: "Add task" });
     new import_obsidian2.Setting(contentEl).setName("Task").addText((text) => {
       text.setPlaceholder("What needs to be done?").onChange((value) => {
         this.taskTitle = value;
@@ -472,13 +478,13 @@ var AddTaskModal = class extends import_obsidian2.Modal {
       });
       setTimeout(() => text.inputEl.focus(), 10);
     });
-    new import_obsidian2.Setting(contentEl).setName("Add to This Week").setDesc("Schedule this task for the current week").addToggle((toggle) => {
+    new import_obsidian2.Setting(contentEl).setName("Add to this week").setDesc("Schedule this task for the current week").addToggle((toggle) => {
       toggle.setValue(this.addToThisWeek).onChange((value) => {
         this.addToThisWeek = value;
       });
     });
     new import_obsidian2.Setting(contentEl).addButton((btn) => {
-      btn.setButtonText("Add Task").setCta().onClick(() => {
+      btn.setButtonText("Add task").setCta().onClick(() => {
         if (this.taskTitle.trim()) {
           this.submit();
         }
@@ -525,19 +531,19 @@ var PlanningModal = class extends import_obsidian3.Modal {
       day: "numeric",
       year: "numeric"
     });
-    contentEl.createEl("h2", { text: `Planning View \u2014 ${dateStr}` });
+    contentEl.createEl("h2", { text: `Planning view \u2014 ${dateStr}` });
     this.renderThisWeekSection(contentEl);
     this.renderUnscheduledSection(contentEl);
     const actionsEl = contentEl.createEl("div", { cls: "focus-planning-actions" });
     const closeBtn = actionsEl.createEl("button", {
-      text: "Done Planning",
+      text: "Done planning",
       cls: "mod-cta"
     });
     closeBtn.addEventListener("click", () => this.close());
   }
   renderGoalsSection(container) {
     const section = container.createEl("div", { cls: "focus-planning-section" });
-    section.createEl("h3", { text: "This Week's Goals" });
+    section.createEl("h3", { text: "This week's goals" });
     const goalsList = section.createEl("div", { cls: "focus-goals-list" });
     if (this.data.goals.length === 0) {
       goalsList.createEl("p", {
@@ -555,15 +561,16 @@ var PlanningModal = class extends import_obsidian3.Modal {
       placeholder: "Add a goal for this week...",
       cls: "focus-goal-input"
     });
-    input.addEventListener("keydown", async (e) => {
+    input.addEventListener("keydown", (e) => {
       if (e.key === "Enter" && input.value.trim()) {
         const newGoal = {
           id: Date.now().toString(36) + Math.random().toString(36).substring(2, 11),
           title: input.value.trim()
         };
         this.data.goals.push(newGoal);
-        await this.plugin.saveTaskData(this.data);
-        this.render();
+        void this.plugin.saveTaskData(this.data).then(() => {
+          this.render();
+        });
       }
     });
   }
@@ -587,13 +594,14 @@ var PlanningModal = class extends import_obsidian3.Modal {
       text: "\xD7",
       cls: "focus-goal-delete"
     });
-    deleteBtn.addEventListener("click", async () => {
+    deleteBtn.addEventListener("click", () => {
       this.unlinkTasksFromGoal(goal.id);
       const index = this.data.goals.findIndex((g) => g.id === goal.id);
       if (index > -1) {
         this.data.goals.splice(index, 1);
-        await this.plugin.saveTaskData(this.data);
-        this.render();
+        void this.plugin.saveTaskData(this.data).then(() => {
+          this.render();
+        });
       }
     });
   }
@@ -623,14 +631,14 @@ var PlanningModal = class extends import_obsidian3.Modal {
   }
   renderThisWeekSection(container) {
     const section = container.createEl("div", { cls: "focus-planning-section" });
-    section.createEl("h3", { text: "This Week's Tasks" });
+    section.createEl("h3", { text: "This week's tasks" });
     const allScheduled = [
       ...this.data.tasks.immediate,
       ...this.data.tasks.thisWeek
     ];
     if (allScheduled.length === 0) {
       section.createEl("p", {
-        text: "No tasks scheduled this week. Schedule tasks from Unscheduled below.",
+        text: "No tasks scheduled this week. Schedule tasks from unscheduled below.",
         cls: "focus-empty-state"
       });
       return;
@@ -654,14 +662,14 @@ var PlanningModal = class extends import_obsidian3.Modal {
   // Keep the old method for potential future use
   renderTasksByGoalSection(container) {
     const section = container.createEl("div", { cls: "focus-planning-section" });
-    section.createEl("h3", { text: "This Week's Tasks" });
+    section.createEl("h3", { text: "This week's tasks" });
     const allScheduled = [
       ...this.data.tasks.immediate,
       ...this.data.tasks.thisWeek
     ];
     if (allScheduled.length === 0) {
       section.createEl("p", {
-        text: "No tasks scheduled this week. Schedule tasks from Unscheduled below.",
+        text: "No tasks scheduled this week. Schedule tasks from unscheduled below.",
         cls: "focus-empty-state"
       });
       return;
@@ -698,7 +706,7 @@ var PlanningModal = class extends import_obsidian3.Modal {
   }
   renderGoalTaskGroup(container, goal, tasks) {
     const groupEl = container.createEl("div", { cls: "focus-goal-group" });
-    const headerText = goal ? `\u{1F3AF} ${goal.title}` : "\u{1F4CB} No Goal Assigned";
+    const headerText = goal ? `\u{1F3AF} ${goal.title}` : "\u{1F4CB} No goal assigned";
     groupEl.createEl("div", {
       text: headerText,
       cls: "focus-goal-group-header"
@@ -739,7 +747,7 @@ var PlanningModal = class extends import_obsidian3.Modal {
       cls: "focus-task-text"
     });
     const actionsEl = taskEl.createEl("div", { cls: "focus-task-actions" });
-    const sectionLabel = task.section === "immediate" ? "Immediate" : "This Week";
+    const sectionLabel = task.section === "immediate" ? "Immediate" : "This week";
     actionsEl.createEl("span", {
       text: sectionLabel,
       cls: "focus-task-section-badge"
@@ -764,7 +772,7 @@ var PlanningModal = class extends import_obsidian3.Modal {
       e.stopPropagation();
       this.showGoalAssignMenu(e, task);
     });
-    const sectionLabel = task.section === "immediate" ? "Immediate" : "This Week";
+    const sectionLabel = task.section === "immediate" ? "Immediate" : "This week";
     actionsEl.createEl("span", {
       text: sectionLabel,
       cls: "focus-task-section-badge"
@@ -781,21 +789,23 @@ var PlanningModal = class extends import_obsidian3.Modal {
       text: "Schedule",
       cls: "focus-schedule-btn"
     });
-    scheduleBtn.addEventListener("click", async () => {
-      await this.moveTaskToSection(task, "unscheduled", "thisWeek");
-      new import_obsidian3.Notice(`"${task.title}" scheduled for this week`);
+    scheduleBtn.addEventListener("click", () => {
+      void this.moveTaskToSection(task, "unscheduled", "thisWeek").then(() => {
+        new import_obsidian3.Notice(`"${task.title}" scheduled for this week`);
+      });
     });
     const deleteBtn = actionsEl.createEl("button", {
       text: "\xD7",
       cls: "focus-delete-btn"
     });
-    deleteBtn.addEventListener("click", async () => {
+    deleteBtn.addEventListener("click", () => {
       const index = this.data.tasks.unscheduled.findIndex((t) => t.id === task.id);
       if (index > -1) {
         this.data.tasks.unscheduled.splice(index, 1);
-        await this.plugin.saveTaskData(this.data);
-        this.render();
-        new import_obsidian3.Notice("Task deleted");
+        void this.plugin.saveTaskData(this.data).then(() => {
+          this.render();
+          new import_obsidian3.Notice("Task deleted");
+        });
       }
     });
   }
@@ -803,11 +813,12 @@ var PlanningModal = class extends import_obsidian3.Modal {
     const menu = new import_obsidian3.Menu();
     if (task.goalId) {
       menu.addItem((item) => {
-        item.setTitle("Remove from goal").setIcon("x").onClick(async () => {
+        item.setTitle("Remove from goal").setIcon("x").onClick(() => {
           delete task.goalId;
-          await this.plugin.saveTaskData(this.data);
-          this.render();
-          this.plugin.refreshFocusView();
+          void this.plugin.saveTaskData(this.data).then(() => {
+            this.render();
+            this.plugin.refreshFocusView();
+          });
         });
       });
       menu.addSeparator();
@@ -815,12 +826,13 @@ var PlanningModal = class extends import_obsidian3.Modal {
     for (const goal of this.data.goals) {
       menu.addItem((item) => {
         const isCurrentGoal = task.goalId === goal.id;
-        item.setTitle(`\u{1F3AF} ${goal.title}`).setIcon(isCurrentGoal ? "check" : "").onClick(async () => {
+        item.setTitle(`\u{1F3AF} ${goal.title}`).setIcon(isCurrentGoal ? "check" : "").onClick(() => {
           task.goalId = goal.id;
-          await this.plugin.saveTaskData(this.data);
-          this.render();
-          this.plugin.refreshFocusView();
-          new import_obsidian3.Notice(`Task assigned to "${goal.title}"`);
+          void this.plugin.saveTaskData(this.data).then(() => {
+            this.render();
+            this.plugin.refreshFocusView();
+            new import_obsidian3.Notice(`Task assigned to "${goal.title}"`);
+          });
         });
       });
     }
@@ -874,7 +886,7 @@ var EndOfDayModal = class extends import_obsidian4.Modal {
     contentEl.addClass("focus-end-of-day-modal");
     if (!this.data)
       return;
-    contentEl.createEl("h2", { text: "End of Day Review" });
+    contentEl.createEl("h2", { text: "End of day review" });
     const today = (/* @__PURE__ */ new Date()).toLocaleDateString("en-US", {
       weekday: "long",
       month: "short",
@@ -885,10 +897,10 @@ var EndOfDayModal = class extends import_obsidian4.Modal {
     const completedImmediate = immediateTasks.filter((t) => t.completed);
     const incompleteImmediate = immediateTasks.filter((t) => !t.completed);
     const progressSection = contentEl.createEl("div", { cls: "focus-review-section" });
-    progressSection.createEl("h3", { text: "Today's Focus" });
+    progressSection.createEl("h3", { text: "Today's focus" });
     if (immediateTasks.length === 0) {
       progressSection.createEl("p", {
-        text: "No tasks were in your Immediate focus today.",
+        text: "No tasks were in your immediate focus today.",
         cls: "focus-empty-state"
       });
     } else {
@@ -914,14 +926,15 @@ var EndOfDayModal = class extends import_obsidian4.Modal {
             text: "Complete",
             cls: "focus-quick-complete-btn"
           });
-          completeBtn.addEventListener("click", async () => {
+          completeBtn.addEventListener("click", () => {
             task.completed = true;
-            await this.plugin.saveTaskData(this.data);
-            if (task.sourceFile) {
-              await this.plugin.syncTaskCompletionToSource(task);
-            }
-            this.plugin.refreshFocusView();
-            this.render();
+            void this.plugin.saveTaskData(this.data).then(() => {
+              if (task.sourceFile) {
+                void this.plugin.syncTaskCompletionToSource(task);
+              }
+              this.plugin.refreshFocusView();
+              this.render();
+            });
           });
         }
       }
@@ -959,9 +972,8 @@ var FocusSettingTab = class extends import_obsidian5.PluginSettingTab {
   display() {
     const { containerEl } = this;
     containerEl.empty();
-    new import_obsidian5.Setting(containerEl).setName("Focus settings").setHeading();
     this.renderHotkeysSection(containerEl);
-    new import_obsidian5.Setting(containerEl).setName("Task settings").setHeading();
+    new import_obsidian5.Setting(containerEl).setName("Tasks").setHeading();
     new import_obsidian5.Setting(containerEl).setName("Task file path").setDesc("Path to the markdown file that stores your tasks (relative to vault root)").addText(
       (text) => text.setPlaceholder("Focus/tasks.md").setValue(this.plugin.settings.taskFilePath).onChange(async (value) => {
         this.plugin.settings.taskFilePath = value || "Focus/tasks.md";
@@ -996,11 +1008,11 @@ var FocusSettingTab = class extends import_obsidian5.PluginSettingTab {
     }
     if (this.plugin.settings.vaultSyncMode !== "off") {
       new import_obsidian5.Setting(containerEl).setName("Sync now").setDesc("Manually scan vault for tasks and add to Unscheduled").addButton(
-        (button) => button.setButtonText("Sync Tasks").setCta().onClick(async () => {
+        (button) => button.setButtonText("Sync tasks").setCta().onClick(async () => {
           button.setButtonText("Syncing...");
           button.setDisabled(true);
-          const count = await this.plugin.syncVaultTasks();
-          button.setButtonText("Sync Tasks");
+          await this.plugin.syncVaultTasks();
+          button.setButtonText("Sync tasks");
           button.setDisabled(false);
         })
       );
@@ -1043,13 +1055,13 @@ var FocusSettingTab = class extends import_obsidian5.PluginSettingTab {
       );
     }
     new import_obsidian5.Setting(containerEl).setName("Weekly rollover").setDesc("What happens to incomplete tasks when a new week starts").setHeading();
-    new import_obsidian5.Setting(containerEl).setName("Roll over Immediate \u2192 This Week").setDesc("Move incomplete Immediate tasks to This Week on planning day").addToggle(
+    new import_obsidian5.Setting(containerEl).setName("Roll over Immediate \u2192 This week").setDesc("Move incomplete Immediate tasks to This week on planning day").addToggle(
       (toggle) => toggle.setValue(this.plugin.settings.rolloverImmediateToThisWeek).onChange(async (value) => {
         this.plugin.settings.rolloverImmediateToThisWeek = value;
         await this.plugin.saveSettings();
       })
     );
-    new import_obsidian5.Setting(containerEl).setName("Roll over This Week \u2192 Unscheduled").setDesc("Move incomplete This Week tasks to Unscheduled on planning day").addToggle(
+    new import_obsidian5.Setting(containerEl).setName("Roll over This week \u2192 Unscheduled").setDesc("Move incomplete This week tasks to Unscheduled on planning day").addToggle(
       (toggle) => toggle.setValue(this.plugin.settings.rolloverThisWeekToUnscheduled).onChange(async (value) => {
         this.plugin.settings.rolloverThisWeekToUnscheduled = value;
         await this.plugin.saveSettings();
@@ -1058,17 +1070,17 @@ var FocusSettingTab = class extends import_obsidian5.PluginSettingTab {
     new import_obsidian5.Setting(containerEl).setName("About").setDesc("Focus is a visibility firewall for your tasks. It helps you focus on what matters NOW by hiding everything else.").setHeading();
   }
   renderHotkeysSection(containerEl) {
-    new import_obsidian5.Setting(containerEl).setName("Hotkeys").setHeading();
+    new import_obsidian5.Setting(containerEl).setName("Keyboard shortcuts").setHeading();
     const commands = [
-      { id: COMMAND_IDS.openFocusView, name: "Open focus view" },
-      { id: COMMAND_IDS.openPlanningView, name: "Open planning view" },
+      { id: COMMAND_IDS.openFocusView, name: "Open view" },
+      { id: COMMAND_IDS.openPlanningView, name: "Open planning" },
       { id: COMMAND_IDS.quickAddTask, name: "Quick add task" }
     ];
     for (const cmd of commands) {
       const hotkey = this.getHotkeyForCommand(cmd.id);
       const hotkeyText = hotkey ? this.formatHotkey(hotkey) : "Not set";
       new import_obsidian5.Setting(containerEl).setName(cmd.name).setDesc(hotkeyText).addButton(
-        (button) => button.setButtonText("Set Hotkey").onClick(() => {
+        (button) => button.setButtonText("Set hotkey").onClick(() => {
           this.app.setting.openTabById("hotkeys");
           const hotkeyTab = this.app.setting.activeTab;
           if (hotkeyTab && hotkeyTab.searchComponent) {
@@ -1248,15 +1260,15 @@ var FocusPlugin = class extends import_obsidian6.Plugin {
       void this.activateFocusView();
     });
     this.addCommand({
-      id: "open-focus-view",
-      name: "Open focus view",
+      id: "open-view",
+      name: "Open view",
       callback: () => {
         void this.activateFocusView();
       }
     });
     this.addCommand({
-      id: "open-planning-view",
-      name: "Open planning view",
+      id: "open-planning",
+      name: "Open planning",
       callback: () => {
         this.openPlanningModal();
       }
@@ -1333,8 +1345,8 @@ var FocusPlugin = class extends import_obsidian6.Plugin {
     if (this.syncDebounceTimeout) {
       clearTimeout(this.syncDebounceTimeout);
     }
-    this.syncDebounceTimeout = setTimeout(async () => {
-      await this.syncVaultTasks(true);
+    this.syncDebounceTimeout = setTimeout(() => {
+      void this.syncVaultTasks(true);
     }, 2e3);
   }
   async loadSettings() {
@@ -1450,7 +1462,7 @@ var FocusPlugin = class extends import_obsidian6.Plugin {
       if (section === "immediate") {
         const activeImmediate = data.tasks.immediate.filter((t) => !t.completed);
         if (activeImmediate.length >= this.settings.maxImmediateTasks) {
-          new import_obsidian6.Notice(`Maximum ${this.settings.maxImmediateTasks} tasks in Immediate. Move one out first.`);
+          new import_obsidian6.Notice(`Maximum ${this.settings.maxImmediateTasks} tasks in immediate. Move one out first.`);
           return;
         }
       }
@@ -1463,7 +1475,7 @@ var FocusPlugin = class extends import_obsidian6.Plugin {
       data.tasks[section].push(newTask);
       await this.saveTaskData(data);
       this.refreshFocusView();
-      const sectionName = section === "immediate" ? "Immediate" : section === "thisWeek" ? "This Week" : "Unscheduled";
+      const sectionName = section === "immediate" ? "Immediate" : section === "thisWeek" ? "This week" : "Unscheduled";
       new import_obsidian6.Notice(`Task added to ${sectionName}`);
     });
     modal.open();

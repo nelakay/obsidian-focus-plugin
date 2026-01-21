@@ -1,5 +1,5 @@
 import { Modal } from 'obsidian';
-import { FocusData, Task } from './types';
+import { FocusData } from './types';
 import type FocusPlugin from './main';
 
 export class EndOfDayModal extends Modal {
@@ -24,7 +24,7 @@ export class EndOfDayModal extends Modal {
 		if (!this.data) return;
 
 		// Header
-		contentEl.createEl('h2', { text: 'End of Day Review' });
+		contentEl.createEl('h2', { text: 'End of day review' });
 
 		const today = new Date().toLocaleDateString('en-US', {
 			weekday: 'long',
@@ -40,11 +40,11 @@ export class EndOfDayModal extends Modal {
 
 		// Progress section
 		const progressSection = contentEl.createEl('div', { cls: 'focus-review-section' });
-		progressSection.createEl('h3', { text: 'Today\'s Focus' });
+		progressSection.createEl('h3', { text: 'Today\'s focus' });
 
 		if (immediateTasks.length === 0) {
 			progressSection.createEl('p', {
-				text: 'No tasks were in your Immediate focus today.',
+				text: 'No tasks were in your immediate focus today.',
 				cls: 'focus-empty-state',
 			});
 		} else {
@@ -76,15 +76,16 @@ export class EndOfDayModal extends Modal {
 						text: 'Complete',
 						cls: 'focus-quick-complete-btn',
 					});
-					completeBtn.addEventListener('click', async () => {
+					completeBtn.addEventListener('click', () => {
 						task.completed = true;
-						await this.plugin.saveTaskData(this.data!);
-						// Sync completion to source file if task came from vault
-						if (task.sourceFile) {
-							await this.plugin.syncTaskCompletionToSource(task);
-						}
-						this.plugin.refreshFocusView();
-						this.render();
+						void this.plugin.saveTaskData(this.data!).then(() => {
+							// Sync completion to source file if task came from vault
+							if (task.sourceFile) {
+								void this.plugin.syncTaskCompletionToSource(task);
+							}
+							this.plugin.refreshFocusView();
+							this.render();
+						});
 					});
 				}
 			}

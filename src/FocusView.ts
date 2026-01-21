@@ -41,7 +41,7 @@ export class FocusView extends ItemView {
 		await this.render();
 	}
 
-	onClose(): void {
+	async onClose(): Promise<void> {
 		this.containerEl.removeEventListener('keydown', this.handleKeyDown.bind(this));
 	}
 
@@ -163,7 +163,7 @@ export class FocusView extends ItemView {
 		if (toSection === 'immediate') {
 			const activeImmediate = this.data.tasks.immediate.filter(t => !t.completed);
 			if (activeImmediate.length >= this.plugin.settings.maxImmediateTasks) {
-				new Notice(`Maximum ${this.plugin.settings.maxImmediateTasks} tasks in Immediate.`);
+				new Notice(`Maximum ${this.plugin.settings.maxImmediateTasks} tasks in immediate.`);
 				return;
 			}
 		}
@@ -194,12 +194,12 @@ export class FocusView extends ItemView {
 
 		// Header with add button
 		const header = container.createEl('div', { cls: 'focus-header' });
-		header.createEl('h2', { text: 'Focus Mode', cls: 'focus-title' });
+		header.createEl('h2', { text: 'Focus mode', cls: 'focus-title' });
 
 		const addButton = header.createEl('button', {
 			text: '+',
 			cls: 'focus-header-add-btn',
-			attr: { title: 'Add Task' },
+			attr: { title: 'Add task' },
 		});
 		addButton.addEventListener('click', () => {
 			this.plugin.openAddTaskModal(true); // Default to This Week when triggered from Focus view
@@ -208,8 +208,8 @@ export class FocusView extends ItemView {
 		// Immediate section
 		this.renderSection(container, 'Immediate', 'immediate', this.data.tasks.immediate, this.data);
 
-		// This Week section
-		this.renderSection(container, 'This Week', 'thisWeek', this.data.tasks.thisWeek, this.data);
+		// This week section
+		this.renderSection(container, 'This week', 'thisWeek', this.data.tasks.thisWeek, this.data);
 
 		// Restore selection if any
 		this.updateSelection();
@@ -281,8 +281,8 @@ export class FocusView extends ItemView {
 			cls: 'focus-checkbox',
 		});
 		checkbox.checked = task.completed;
-		checkbox.addEventListener('change', async () => {
-			await this.toggleTaskComplete(task, data);
+		checkbox.addEventListener('change', () => {
+			void this.toggleTaskComplete(task, data);
 		});
 
 		// Task title with wiki-link support
@@ -347,10 +347,10 @@ export class FocusView extends ItemView {
 				href: '#',
 			});
 
-			linkEl.addEventListener('click', async (e) => {
+			linkEl.addEventListener('click', (e) => {
 				e.preventDefault();
 				e.stopPropagation();
-				await this.plugin.openLinkedNote(`[[${notePath}]]`);
+				void this.plugin.openLinkedNote(`[[${notePath}]]`);
 			});
 
 			lastIndex = match.index + match[0].length;
@@ -398,7 +398,7 @@ export class FocusView extends ItemView {
 			listEl.removeClass('focus-drop-active');
 		});
 
-		listEl.addEventListener('drop', async (e) => {
+		listEl.addEventListener('drop', (e) => {
 			e.preventDefault();
 			listEl.removeClass('focus-drop-active');
 
@@ -408,12 +408,12 @@ export class FocusView extends ItemView {
 			if (section === 'immediate') {
 				const activeImmediate = data.tasks.immediate.filter(t => !t.completed);
 				if (activeImmediate.length >= this.plugin.settings.maxImmediateTasks) {
-					new Notice(`Maximum ${this.plugin.settings.maxImmediateTasks} tasks in Immediate. Remove one first.`);
+					new Notice(`Maximum ${this.plugin.settings.maxImmediateTasks} tasks in immediate. Remove one first.`);
 					return;
 				}
 			}
 
-			await this.moveTask(this.draggedTask, this.draggedFromSection!, section, data);
+			void this.moveTask(this.draggedTask, this.draggedFromSection!, section, data);
 		});
 	}
 
@@ -453,40 +453,40 @@ export class FocusView extends ItemView {
 		// Complete/Uncomplete
 		menu.addItem((item) => {
 			item
-				.setTitle(task.completed ? 'Mark Incomplete' : 'Mark Complete')
+				.setTitle(task.completed ? 'Mark incomplete' : 'Mark complete')
 				.setIcon(task.completed ? 'circle' : 'check-circle')
-				.onClick(async () => {
-					await this.toggleTaskComplete(task, data);
+				.onClick(() => {
+					void this.toggleTaskComplete(task, data);
 				});
 		});
 
 		menu.addSeparator();
 
-		// Move to Immediate (if in This Week)
+		// Move to Immediate (if in This week)
 		if (section === 'thisWeek' && !task.completed) {
 			menu.addItem((item) => {
 				item
-					.setTitle('Move to Immediate')
+					.setTitle('Move to immediate')
 					.setIcon('arrow-up')
-					.onClick(async () => {
+					.onClick(() => {
 						const activeImmediate = data.tasks.immediate.filter(t => !t.completed);
 						if (activeImmediate.length >= this.plugin.settings.maxImmediateTasks) {
-							new Notice(`Maximum ${this.plugin.settings.maxImmediateTasks} tasks in Immediate.`);
+							new Notice(`Maximum ${this.plugin.settings.maxImmediateTasks} tasks in immediate.`);
 							return;
 						}
-						await this.moveTask(task, section, 'immediate', data);
+						void this.moveTask(task, section, 'immediate', data);
 					});
 			});
 		}
 
-		// Move to This Week (if in Immediate)
+		// Move to This week (if in Immediate)
 		if (section === 'immediate' && !task.completed) {
 			menu.addItem((item) => {
 				item
-					.setTitle('Move to This Week')
+					.setTitle('Move to this week')
 					.setIcon('arrow-down')
-					.onClick(async () => {
-						await this.moveTask(task, section, 'thisWeek', data);
+					.onClick(() => {
+						void this.moveTask(task, section, 'thisWeek', data);
 					});
 			});
 		}
@@ -499,9 +499,10 @@ export class FocusView extends ItemView {
 				item
 					.setTitle('Deprioritize')
 					.setIcon('arrow-down-to-line')
-					.onClick(async () => {
-						await this.moveTask(task, section, 'unscheduled', data);
-						new Notice('Task moved to backlog.');
+					.onClick(() => {
+						void this.moveTask(task, section, 'unscheduled', data).then(() => {
+							new Notice('Task moved to backlog.');
+						});
 					});
 			});
 		}
@@ -510,12 +511,12 @@ export class FocusView extends ItemView {
 		if (task.sourceFile) {
 			menu.addItem((item) => {
 				item
-					.setTitle('Open Source File')
+					.setTitle('Open source file')
 					.setIcon('file')
-					.onClick(async () => {
+					.onClick(() => {
 						const file = this.plugin.app.vault.getAbstractFileByPath(task.sourceFile!);
 						if (file instanceof TFile) {
-							await this.plugin.app.workspace.getLeaf().openFile(file);
+							void this.plugin.app.workspace.getLeaf().openFile(file);
 						}
 					});
 			});
@@ -526,13 +527,14 @@ export class FocusView extends ItemView {
 			item
 				.setTitle('Delete')
 				.setIcon('trash')
-				.onClick(async () => {
+				.onClick(() => {
 					const fromIndex = data.tasks[section].findIndex(t => t.id === task.id);
 					if (fromIndex > -1) {
 						data.tasks[section].splice(fromIndex, 1);
-						await this.plugin.saveTaskData(data);
-						await this.render();
-						new Notice('Task deleted');
+						void this.plugin.saveTaskData(data).then(() => {
+							void this.render();
+							new Notice('Task deleted');
+						});
 					}
 				});
 		});

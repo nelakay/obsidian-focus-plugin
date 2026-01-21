@@ -31,7 +31,7 @@ export class PlanningModal extends Modal {
 			day: 'numeric',
 			year: 'numeric',
 		});
-		contentEl.createEl('h2', { text: `Planning View — ${dateStr}` });
+		contentEl.createEl('h2', { text: `Planning view — ${dateStr}` });
 
 		// Weekly Goals section - hidden for now
 		// this.renderGoalsSection(contentEl);
@@ -46,7 +46,7 @@ export class PlanningModal extends Modal {
 		const actionsEl = contentEl.createEl('div', { cls: 'focus-planning-actions' });
 
 		const closeBtn = actionsEl.createEl('button', {
-			text: 'Done Planning',
+			text: 'Done planning',
 			cls: 'mod-cta',
 		});
 		closeBtn.addEventListener('click', () => this.close());
@@ -54,7 +54,7 @@ export class PlanningModal extends Modal {
 
 	private renderGoalsSection(container: HTMLElement): void {
 		const section = container.createEl('div', { cls: 'focus-planning-section' });
-		section.createEl('h3', { text: "This Week's Goals" });
+		section.createEl('h3', { text: "This week's goals" });
 
 		const goalsList = section.createEl('div', { cls: 'focus-goals-list' });
 
@@ -77,15 +77,16 @@ export class PlanningModal extends Modal {
 			cls: 'focus-goal-input',
 		});
 
-		input.addEventListener('keydown', async (e) => {
+		input.addEventListener('keydown', (e) => {
 			if (e.key === 'Enter' && input.value.trim()) {
 				const newGoal: WeeklyGoal = {
 					id: Date.now().toString(36) + Math.random().toString(36).substring(2, 11),
 					title: input.value.trim(),
 				};
 				this.data!.goals.push(newGoal);
-				await this.plugin.saveTaskData(this.data!);
-				this.render();
+				void this.plugin.saveTaskData(this.data!).then(() => {
+					this.render();
+				});
 			}
 		});
 	}
@@ -115,15 +116,16 @@ export class PlanningModal extends Modal {
 			text: '×',
 			cls: 'focus-goal-delete',
 		});
-		deleteBtn.addEventListener('click', async () => {
+		deleteBtn.addEventListener('click', () => {
 			// Unlink all tasks from this goal before deleting
 			this.unlinkTasksFromGoal(goal.id);
 
 			const index = this.data!.goals.findIndex(g => g.id === goal.id);
 			if (index > -1) {
 				this.data!.goals.splice(index, 1);
-				await this.plugin.saveTaskData(this.data!);
-				this.render();
+				void this.plugin.saveTaskData(this.data!).then(() => {
+					this.render();
+				});
 			}
 		});
 	}
@@ -157,7 +159,7 @@ export class PlanningModal extends Modal {
 
 	private renderThisWeekSection(container: HTMLElement): void {
 		const section = container.createEl('div', { cls: 'focus-planning-section' });
-		section.createEl('h3', { text: "This Week's Tasks" });
+		section.createEl('h3', { text: "This week's tasks" });
 
 		const allScheduled = [
 			...this.data!.tasks.immediate,
@@ -166,7 +168,7 @@ export class PlanningModal extends Modal {
 
 		if (allScheduled.length === 0) {
 			section.createEl('p', {
-				text: 'No tasks scheduled this week. Schedule tasks from Unscheduled below.',
+				text: 'No tasks scheduled this week. Schedule tasks from unscheduled below.',
 				cls: 'focus-empty-state',
 			});
 			return;
@@ -196,7 +198,7 @@ export class PlanningModal extends Modal {
 	// Keep the old method for potential future use
 	private renderTasksByGoalSection(container: HTMLElement): void {
 		const section = container.createEl('div', { cls: 'focus-planning-section' });
-		section.createEl('h3', { text: "This Week's Tasks" });
+		section.createEl('h3', { text: "This week's tasks" });
 
 		const allScheduled = [
 			...this.data!.tasks.immediate,
@@ -205,7 +207,7 @@ export class PlanningModal extends Modal {
 
 		if (allScheduled.length === 0) {
 			section.createEl('p', {
-				text: 'No tasks scheduled this week. Schedule tasks from Unscheduled below.',
+				text: 'No tasks scheduled this week. Schedule tasks from unscheduled below.',
 				cls: 'focus-empty-state',
 			});
 			return;
@@ -257,7 +259,7 @@ export class PlanningModal extends Modal {
 	private renderGoalTaskGroup(container: HTMLElement, goal: WeeklyGoal | null, tasks: Task[]): void {
 		const groupEl = container.createEl('div', { cls: 'focus-goal-group' });
 
-		const headerText = goal ? `🎯 ${goal.title}` : '📋 No Goal Assigned';
+		const headerText = goal ? `🎯 ${goal.title}` : '📋 No goal assigned';
 		groupEl.createEl('div', {
 			text: headerText,
 			cls: 'focus-goal-group-header',
@@ -311,7 +313,7 @@ export class PlanningModal extends Modal {
 		const actionsEl = taskEl.createEl('div', { cls: 'focus-task-actions' });
 
 		// Section badge only (no goal button)
-		const sectionLabel = task.section === 'immediate' ? 'Immediate' : 'This Week';
+		const sectionLabel = task.section === 'immediate' ? 'Immediate' : 'This week';
 		actionsEl.createEl('span', {
 			text: sectionLabel,
 			cls: 'focus-task-section-badge',
@@ -348,7 +350,7 @@ export class PlanningModal extends Modal {
 		});
 
 		// Section badge
-		const sectionLabel = task.section === 'immediate' ? 'Immediate' : 'This Week';
+		const sectionLabel = task.section === 'immediate' ? 'Immediate' : 'This week';
 		actionsEl.createEl('span', {
 			text: sectionLabel,
 			cls: 'focus-task-section-badge',
@@ -388,9 +390,10 @@ export class PlanningModal extends Modal {
 			text: 'Schedule',
 			cls: 'focus-schedule-btn',
 		});
-		scheduleBtn.addEventListener('click', async () => {
-			await this.moveTaskToSection(task, 'unscheduled', 'thisWeek');
-			new Notice(`"${task.title}" scheduled for this week`);
+		scheduleBtn.addEventListener('click', () => {
+			void this.moveTaskToSection(task, 'unscheduled', 'thisWeek').then(() => {
+				new Notice(`"${task.title}" scheduled for this week`);
+			});
 		});
 
 		// Delete
@@ -398,13 +401,14 @@ export class PlanningModal extends Modal {
 			text: '×',
 			cls: 'focus-delete-btn',
 		});
-		deleteBtn.addEventListener('click', async () => {
+		deleteBtn.addEventListener('click', () => {
 			const index = this.data!.tasks.unscheduled.findIndex(t => t.id === task.id);
 			if (index > -1) {
 				this.data!.tasks.unscheduled.splice(index, 1);
-				await this.plugin.saveTaskData(this.data!);
-				this.render();
-				new Notice('Task deleted');
+				void this.plugin.saveTaskData(this.data!).then(() => {
+					this.render();
+					new Notice('Task deleted');
+				});
 			}
 		});
 	}
@@ -418,11 +422,12 @@ export class PlanningModal extends Modal {
 				item
 					.setTitle('Remove from goal')
 					.setIcon('x')
-					.onClick(async () => {
+					.onClick(() => {
 						delete task.goalId;
-						await this.plugin.saveTaskData(this.data!);
-						this.render();
-						this.plugin.refreshFocusView();
+						void this.plugin.saveTaskData(this.data!).then(() => {
+							this.render();
+							this.plugin.refreshFocusView();
+						});
 					});
 			});
 			menu.addSeparator();
@@ -435,12 +440,13 @@ export class PlanningModal extends Modal {
 				item
 					.setTitle(`🎯 ${goal.title}`)
 					.setIcon(isCurrentGoal ? 'check' : '')
-					.onClick(async () => {
+					.onClick(() => {
 						task.goalId = goal.id;
-						await this.plugin.saveTaskData(this.data!);
-						this.render();
-						this.plugin.refreshFocusView();
-						new Notice(`Task assigned to "${goal.title}"`);
+						void this.plugin.saveTaskData(this.data!).then(() => {
+							this.render();
+							this.plugin.refreshFocusView();
+							new Notice(`Task assigned to "${goal.title}"`);
+						});
 					});
 			});
 		}

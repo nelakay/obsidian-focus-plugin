@@ -26,7 +26,7 @@ export class AddTaskModal extends Modal {
 		contentEl.empty();
 		contentEl.addClass('focus-add-task-modal');
 
-		contentEl.createEl('h2', { text: 'Add Task' });
+		contentEl.createEl('h2', { text: 'Add task' });
 
 		new Setting(contentEl)
 			.setName('Task')
@@ -46,7 +46,7 @@ export class AddTaskModal extends Modal {
 			});
 
 		new Setting(contentEl)
-			.setName('Add to This Week')
+			.setName('Add to this week')
 			.setDesc('Schedule this task for the current week')
 			.addToggle((toggle) => {
 				toggle
@@ -59,7 +59,7 @@ export class AddTaskModal extends Modal {
 		new Setting(contentEl)
 			.addButton((btn) => {
 				btn
-					.setButtonText('Add Task')
+					.setButtonText('Add task')
 					.setCta()
 					.onClick(() => {
 						if (this.taskTitle.trim()) {
