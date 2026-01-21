@@ -96,9 +96,9 @@ export class EndOfDayModal extends Modal {
 		if (immediateTasks.length === 0) {
 			messageSection.createEl('p', { text: 'Plan your focus for tomorrow!' });
 		} else if (completedImmediate.length === immediateTasks.length) {
-			messageSection.createEl('p', { text: '🎉 Great job! You completed everything.' });
+			messageSection.createEl('p', { text: 'Great job! You completed everything.' });
 		} else if (completedImmediate.length >= immediateTasks.length / 2) {
-			messageSection.createEl('p', { text: 'Good progress today. The rest can wait for tomorrow.' });
+			messageSection.createEl('p', { text: 'You did amazing today! The rest can wait until tomorrow.' });
 		} else {
 			messageSection.createEl('p', { text: 'Every step counts. Tomorrow is a new day.' });
 		}
