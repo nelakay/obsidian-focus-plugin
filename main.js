@@ -942,9 +942,9 @@ var EndOfDayModal = class extends import_obsidian4.Modal {
     if (immediateTasks.length === 0) {
       messageSection.createEl("p", { text: "Plan your focus for tomorrow!" });
     } else if (completedImmediate.length === immediateTasks.length) {
-      messageSection.createEl("p", { text: "\u{1F389} Great job! You completed everything." });
+      messageSection.createEl("p", { text: "\u{1F389} Great job! you completed everything." });
     } else if (completedImmediate.length >= immediateTasks.length / 2) {
-      messageSection.createEl("p", { text: "Good progress today. The rest can wait for tomorrow." });
+      messageSection.createEl("p", { text: "Good progress today. the rest can wait for tomorrow." });
     } else {
       messageSection.createEl("p", { text: "Every step counts. Tomorrow is a new day." });
     }
@@ -988,7 +988,7 @@ var FocusSettingTab = class extends import_obsidian5.PluginSettingTab {
     );
     new import_obsidian5.Setting(containerEl).setName("Vault task sync").setHeading();
     new import_obsidian5.Setting(containerEl).setName("Sync tasks from vault").setDesc("Pull tasks from other notes in your vault into the unscheduled backlog").addDropdown(
-      (dropdown) => dropdown.addOption("off", "Off - Only use Focus task file").addOption("all", "All - Sync all tasks from vault").addOption("tag", "Tag - Only sync tasks with a specific tag").setValue(this.plugin.settings.vaultSyncMode).onChange(async (value) => {
+      (dropdown) => dropdown.addOption("off", "Off - only use Focus task file").addOption("all", "All - sync all tasks from vault").addOption("tag", "Tag - only sync tasks with a specific tag").setValue(this.plugin.settings.vaultSyncMode).onChange(async (value) => {
         this.plugin.settings.vaultSyncMode = value;
         await this.plugin.saveSettings();
         this.display();
@@ -1067,7 +1067,7 @@ var FocusSettingTab = class extends import_obsidian5.PluginSettingTab {
         await this.plugin.saveSettings();
       })
     );
-    new import_obsidian5.Setting(containerEl).setName("About").setDesc("Focus is a visibility firewall for your tasks. It helps you focus on what matters NOW by hiding everything else.").setHeading();
+    new import_obsidian5.Setting(containerEl).setName("About").setDesc("Focus is a visibility firewall for your tasks. It helps you focus on what matters now by hiding everything else.").setHeading();
   }
   renderHotkeysSection(containerEl) {
     new import_obsidian5.Setting(containerEl).setName("Keyboard shortcuts").setHeading();
@@ -1402,7 +1402,7 @@ var FocusPlugin = class extends import_obsidian6.Plugin {
       }
     }
     if (leaf) {
-      workspace.revealLeaf(leaf);
+      void workspace.revealLeaf(leaf);
     }
   }
   async ensureTaskFileExists() {
@@ -1460,28 +1460,31 @@ var FocusPlugin = class extends import_obsidian6.Plugin {
    * @param defaultToThisWeek - If true, the "Add to This Week" checkbox will be checked by default
    */
   openAddTaskModal(defaultToThisWeek = false) {
-    const modal = new AddTaskModal(this, defaultToThisWeek, async (title, section) => {
-      const data = await this.loadTaskData();
-      if (section === "immediate") {
-        const activeImmediate = data.tasks.immediate.filter((t) => !t.completed);
-        if (activeImmediate.length >= this.settings.maxImmediateTasks) {
-          new import_obsidian6.Notice(`Maximum ${this.settings.maxImmediateTasks} tasks in immediate. Move one out first.`);
-          return;
-        }
-      }
-      const newTask = {
-        id: Date.now().toString(36) + Math.random().toString(36).substring(2, 11),
-        title,
-        completed: false,
-        section
-      };
-      data.tasks[section].push(newTask);
-      await this.saveTaskData(data);
-      this.refreshFocusView();
-      const sectionName = section === "immediate" ? "immediate" : section === "thisWeek" ? "this week" : "unscheduled";
-      new import_obsidian6.Notice(`Task added to ${sectionName}`);
+    const modal = new AddTaskModal(this, defaultToThisWeek, (title, section) => {
+      void this.addTask(title, section);
     });
     modal.open();
+  }
+  async addTask(title, section) {
+    const data = await this.loadTaskData();
+    if (section === "immediate") {
+      const activeImmediate = data.tasks.immediate.filter((t) => !t.completed);
+      if (activeImmediate.length >= this.settings.maxImmediateTasks) {
+        new import_obsidian6.Notice(`Maximum ${this.settings.maxImmediateTasks} tasks in immediate. Move one out first.`);
+        return;
+      }
+    }
+    const newTask = {
+      id: Date.now().toString(36) + Math.random().toString(36).substring(2, 11),
+      title,
+      completed: false,
+      section
+    };
+    data.tasks[section].push(newTask);
+    await this.saveTaskData(data);
+    this.refreshFocusView();
+    const sectionName = section === "immediate" ? "immediate" : section === "thisWeek" ? "this week" : "unscheduled";
+    new import_obsidian6.Notice(`Task added to ${sectionName}`);
   }
   openPlanningModal() {
     const modal = new PlanningModal(this);
@@ -1492,7 +1495,7 @@ var FocusPlugin = class extends import_obsidian6.Plugin {
     for (const leaf of leaves) {
       const view = leaf.view;
       if (view instanceof FocusView) {
-        view.render();
+        void view.render();
       }
     }
   }
@@ -1572,7 +1575,7 @@ var FocusPlugin = class extends import_obsidian6.Plugin {
       if (messages.length > 0) {
         new import_obsidian6.Notice(`Vault sync: ${messages.join(", ")}`);
       } else {
-        new import_obsidian6.Notice("Vault sync: Already up to date");
+        new import_obsidian6.Notice("Vault sync: already up to date");
       }
     }
     return newTasksCount + syncedCompletions;

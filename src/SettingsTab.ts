@@ -56,9 +56,9 @@ export class FocusSettingTab extends PluginSettingTab {
 			.setDesc('Pull tasks from other notes in your vault into the unscheduled backlog')
 			.addDropdown((dropdown) =>
 				dropdown
-					.addOption('off', 'Off - Only use Focus task file')
-					.addOption('all', 'All - Sync all tasks from vault')
-					.addOption('tag', 'Tag - Only sync tasks with a specific tag')
+					.addOption('off', 'Off - only use Focus task file')
+					.addOption('all', 'All - sync all tasks from vault')
+					.addOption('tag', 'Tag - only sync tasks with a specific tag')
 					.setValue(this.plugin.settings.vaultSyncMode)
 					.onChange(async (value: VaultSyncMode) => {
 						this.plugin.settings.vaultSyncMode = value;
@@ -207,7 +207,7 @@ export class FocusSettingTab extends PluginSettingTab {
 		// ===== ABOUT SECTION =====
 		new Setting(containerEl)
 			.setName('About')
-			.setDesc('Focus is a visibility firewall for your tasks. It helps you focus on what matters NOW by hiding everything else.')
+			.setDesc('Focus is a visibility firewall for your tasks. It helps you focus on what matters now by hiding everything else.')
 			.setHeading();
 	}
 

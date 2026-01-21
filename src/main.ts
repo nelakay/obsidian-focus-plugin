@@ -214,7 +214,7 @@ export default class FocusPlugin extends Plugin {
 		}
 
 		if (leaf) {
-			workspace.revealLeaf(leaf);
+			void workspace.revealLeaf(leaf);
 		}
 	}
 
@@ -287,38 +287,42 @@ export default class FocusPlugin extends Plugin {
 	 * @param defaultToThisWeek - If true, the "Add to This Week" checkbox will be checked by default
 	 */
 	openAddTaskModal(defaultToThisWeek: boolean = false): void {
-		const modal = new AddTaskModal(this, defaultToThisWeek, async (title, section) => {
-			const data = await this.loadTaskData();
-
-			// Check max immediate (though currently modal only supports thisWeek/unscheduled)
-			if (section === 'immediate') {
-				const activeImmediate = data.tasks.immediate.filter(t => !t.completed);
-				if (activeImmediate.length >= this.settings.maxImmediateTasks) {
-					new Notice(`Maximum ${this.settings.maxImmediateTasks} tasks in immediate. Move one out first.`);
-					return;
-				}
-			}
-
-			const newTask: Task = {
-				id: Date.now().toString(36) + Math.random().toString(36).substring(2, 11),
-				title,
-				completed: false,
-				section: section,
-			};
-
-			data.tasks[section].push(newTask);
-			await this.saveTaskData(data);
-
-			this.refreshFocusView();
-
-			const sectionName = section === 'immediate'
-				? 'immediate'
-				: section === 'thisWeek'
-					? 'this week'
-					: 'unscheduled';
-			new Notice(`Task added to ${sectionName}`);
+		const modal = new AddTaskModal(this, defaultToThisWeek, (title, section) => {
+			void this.addTask(title, section);
 		});
 		modal.open();
+	}
+
+	private async addTask(title: string, section: TaskSection): Promise<void> {
+		const data = await this.loadTaskData();
+
+		// Check max immediate (though currently modal only supports thisWeek/unscheduled)
+		if (section === 'immediate') {
+			const activeImmediate = data.tasks.immediate.filter(t => !t.completed);
+			if (activeImmediate.length >= this.settings.maxImmediateTasks) {
+				new Notice(`Maximum ${this.settings.maxImmediateTasks} tasks in immediate. Move one out first.`);
+				return;
+			}
+		}
+
+		const newTask: Task = {
+			id: Date.now().toString(36) + Math.random().toString(36).substring(2, 11),
+			title,
+			completed: false,
+			section: section,
+		};
+
+		data.tasks[section].push(newTask);
+		await this.saveTaskData(data);
+
+		this.refreshFocusView();
+
+		const sectionName = section === 'immediate'
+			? 'immediate'
+			: section === 'thisWeek'
+				? 'this week'
+				: 'unscheduled';
+		new Notice(`Task added to ${sectionName}`);
 	}
 
 	openPlanningModal(): void {
@@ -331,7 +335,7 @@ export default class FocusPlugin extends Plugin {
 		for (const leaf of leaves) {
 			const view = leaf.view;
 			if (view instanceof FocusView) {
-				view.render();
+				void view.render();
 			}
 		}
 	}
@@ -429,7 +433,7 @@ export default class FocusPlugin extends Plugin {
 			if (messages.length > 0) {
 				new Notice(`Vault sync: ${messages.join(', ')}`);
 			} else {
-				new Notice('Vault sync: Already up to date');
+				new Notice('Vault sync: already up to date');
 			}
 		}
 		return newTasksCount + syncedCompletions;
