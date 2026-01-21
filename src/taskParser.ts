@@ -145,8 +145,8 @@ export function serializeTaskFile(data: FocusData): string {
 	}
 	lines.push('');
 
-	// This Week section
-	lines.push('## This Week');
+	// This week section
+	lines.push('## This week');
 	for (const task of data.tasks.thisWeek) {
 		lines.push(serializeTask(task));
 	}

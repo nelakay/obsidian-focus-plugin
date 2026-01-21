@@ -90,6 +90,7 @@ var FocusView = class extends import_obsidian.ItemView {
   }
   async onClose() {
     this.containerEl.removeEventListener("keydown", this.handleKeyDown.bind(this));
+    await Promise.resolve();
   }
   handleKeyDown(e) {
     if (!this.data)
@@ -978,7 +979,7 @@ var FocusSettingTab = class extends import_obsidian5.PluginSettingTab {
         await this.plugin.saveSettings();
       })
     );
-    new import_obsidian5.Setting(containerEl).setName("Maximum immediate tasks").setDesc("Maximum number of tasks allowed in the Immediate section (3-5 recommended)").addSlider(
+    new import_obsidian5.Setting(containerEl).setName("Maximum immediate tasks").setDesc("Maximum number of tasks allowed in the immediate section (3-5 recommended)").addSlider(
       (slider) => slider.setLimits(1, 7, 1).setValue(this.plugin.settings.maxImmediateTasks).setDynamicTooltip().onChange(async (value) => {
         this.plugin.settings.maxImmediateTasks = value;
         await this.plugin.saveSettings();
@@ -986,7 +987,7 @@ var FocusSettingTab = class extends import_obsidian5.PluginSettingTab {
       })
     );
     new import_obsidian5.Setting(containerEl).setName("Vault task sync").setHeading();
-    new import_obsidian5.Setting(containerEl).setName("Sync tasks from vault").setDesc("Pull tasks from other notes in your vault into the Unscheduled backlog").addDropdown(
+    new import_obsidian5.Setting(containerEl).setName("Sync tasks from vault").setDesc("Pull tasks from other notes in your vault into the unscheduled backlog").addDropdown(
       (dropdown) => dropdown.addOption("off", "Off - Only use Focus task file").addOption("all", "All - Sync all tasks from vault").addOption("tag", "Tag - Only sync tasks with a specific tag").setValue(this.plugin.settings.vaultSyncMode).onChange(async (value) => {
         this.plugin.settings.vaultSyncMode = value;
         await this.plugin.saveSettings();
@@ -1005,13 +1006,14 @@ var FocusSettingTab = class extends import_obsidian5.PluginSettingTab {
       );
     }
     if (this.plugin.settings.vaultSyncMode !== "off") {
-      new import_obsidian5.Setting(containerEl).setName("Sync now").setDesc("Manually scan vault for tasks and add to Unscheduled").addButton(
-        (button) => button.setButtonText("Sync tasks").setCta().onClick(async () => {
+      new import_obsidian5.Setting(containerEl).setName("Sync now").setDesc("Manually scan vault for tasks and add to unscheduled").addButton(
+        (button) => button.setButtonText("Sync tasks").setCta().onClick(() => {
           button.setButtonText("Syncing...");
           button.setDisabled(true);
-          await this.plugin.syncVaultTasks();
-          button.setButtonText("Sync tasks");
-          button.setDisabled(false);
+          void this.plugin.syncVaultTasks().then(() => {
+            button.setButtonText("Sync tasks");
+            button.setDisabled(false);
+          });
         })
       );
     }
@@ -1053,13 +1055,13 @@ var FocusSettingTab = class extends import_obsidian5.PluginSettingTab {
       );
     }
     new import_obsidian5.Setting(containerEl).setName("Weekly rollover").setDesc("What happens to incomplete tasks when a new week starts").setHeading();
-    new import_obsidian5.Setting(containerEl).setName("Roll over Immediate \u2192 This week").setDesc("Move incomplete Immediate tasks to This week on planning day").addToggle(
+    new import_obsidian5.Setting(containerEl).setName("Roll over immediate \u2192 this week").setDesc("Move incomplete immediate tasks to this week on planning day").addToggle(
       (toggle) => toggle.setValue(this.plugin.settings.rolloverImmediateToThisWeek).onChange(async (value) => {
         this.plugin.settings.rolloverImmediateToThisWeek = value;
         await this.plugin.saveSettings();
       })
     );
-    new import_obsidian5.Setting(containerEl).setName("Roll over This week \u2192 Unscheduled").setDesc("Move incomplete This week tasks to Unscheduled on planning day").addToggle(
+    new import_obsidian5.Setting(containerEl).setName("Roll over this week \u2192 unscheduled").setDesc("Move incomplete this week tasks to unscheduled on planning day").addToggle(
       (toggle) => toggle.setValue(this.plugin.settings.rolloverThisWeekToUnscheduled).onChange(async (value) => {
         this.plugin.settings.rolloverThisWeekToUnscheduled = value;
         await this.plugin.saveSettings();
@@ -1218,7 +1220,7 @@ function serializeTaskFile(data) {
     lines.push(serializeTask(task));
   }
   lines.push("");
-  lines.push("## This Week");
+  lines.push("## This week");
   for (const task of data.tasks.thisWeek) {
     lines.push(serializeTask(task));
   }
@@ -1476,7 +1478,7 @@ var FocusPlugin = class extends import_obsidian6.Plugin {
       data.tasks[section].push(newTask);
       await this.saveTaskData(data);
       this.refreshFocusView();
-      const sectionName = section === "immediate" ? "Immediate" : section === "thisWeek" ? "This week" : "Unscheduled";
+      const sectionName = section === "immediate" ? "immediate" : section === "thisWeek" ? "this week" : "unscheduled";
       new import_obsidian6.Notice(`Task added to ${sectionName}`);
     });
     modal.open();

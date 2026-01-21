@@ -312,10 +312,10 @@ export default class FocusPlugin extends Plugin {
 			this.refreshFocusView();
 
 			const sectionName = section === 'immediate'
-				? 'Immediate'
+				? 'immediate'
 				: section === 'thisWeek'
-					? 'This week'
-					: 'Unscheduled';
+					? 'this week'
+					: 'unscheduled';
 			new Notice(`Task added to ${sectionName}`);
 		});
 		modal.open();

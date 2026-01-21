@@ -35,7 +35,7 @@ export class FocusSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName('Maximum immediate tasks')
-			.setDesc('Maximum number of tasks allowed in the Immediate section (3-5 recommended)')
+			.setDesc('Maximum number of tasks allowed in the immediate section (3-5 recommended)')
 			.addSlider((slider) =>
 				slider
 					.setLimits(1, 7, 1)
@@ -53,7 +53,7 @@ export class FocusSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName('Sync tasks from vault')
-			.setDesc('Pull tasks from other notes in your vault into the Unscheduled backlog')
+			.setDesc('Pull tasks from other notes in your vault into the unscheduled backlog')
 			.addDropdown((dropdown) =>
 				dropdown
 					.addOption('off', 'Off - Only use Focus task file')
@@ -92,17 +92,18 @@ export class FocusSettingTab extends PluginSettingTab {
 		if (this.plugin.settings.vaultSyncMode !== 'off') {
 			new Setting(containerEl)
 				.setName('Sync now')
-				.setDesc('Manually scan vault for tasks and add to Unscheduled')
+				.setDesc('Manually scan vault for tasks and add to unscheduled')
 				.addButton((button) =>
 					button
 						.setButtonText('Sync tasks')
 						.setCta()
-						.onClick(async () => {
+						.onClick(() => {
 							button.setButtonText('Syncing...');
 							button.setDisabled(true);
-							await this.plugin.syncVaultTasks();
-							button.setButtonText('Sync tasks');
-							button.setDisabled(false);
+							void this.plugin.syncVaultTasks().then(() => {
+								button.setButtonText('Sync tasks');
+								button.setDisabled(false);
+							});
 						})
 				);
 		}
@@ -180,8 +181,8 @@ export class FocusSettingTab extends PluginSettingTab {
 			.setHeading();
 
 		new Setting(containerEl)
-			.setName('Roll over Immediate → This week')
-			.setDesc('Move incomplete Immediate tasks to This week on planning day')
+			.setName('Roll over immediate → this week')
+			.setDesc('Move incomplete immediate tasks to this week on planning day')
 			.addToggle((toggle) =>
 				toggle
 					.setValue(this.plugin.settings.rolloverImmediateToThisWeek)
@@ -192,8 +193,8 @@ export class FocusSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName('Roll over This week → Unscheduled')
-			.setDesc('Move incomplete This week tasks to Unscheduled on planning day')
+			.setName('Roll over this week → unscheduled')
+			.setDesc('Move incomplete this week tasks to unscheduled on planning day')
 			.addToggle((toggle) =>
 				toggle
 					.setValue(this.plugin.settings.rolloverThisWeekToUnscheduled)

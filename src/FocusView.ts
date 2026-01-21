@@ -42,6 +42,7 @@ export class FocusView extends ItemView {
 
 	async onClose(): Promise<void> {
 		this.containerEl.removeEventListener('keydown', this.handleKeyDown.bind(this));
+		await Promise.resolve();
 	}
 
 	private handleKeyDown(e: KeyboardEvent): void {
