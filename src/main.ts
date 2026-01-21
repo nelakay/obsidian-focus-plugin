@@ -34,7 +34,7 @@ export default class FocusPlugin extends Plugin {
 
 		// Add commands
 		this.addCommand({
-			id: 'open-focus-view',
+			id: 'open-view',
 			name: 'Open view',
 			callback: () => {
 				void this.activateFocusView();
@@ -42,7 +42,7 @@ export default class FocusPlugin extends Plugin {
 		});
 
 		this.addCommand({
-			id: 'open-planning-view',
+			id: 'open-planning',
 			name: 'Open planning',
 			callback: () => {
 				this.openPlanningModal();

@@ -83,7 +83,7 @@ export const PLANNING_VIEW_TYPE = 'planning-view';
 
 // Command IDs for hotkey display
 export const COMMAND_IDS = {
-	openFocusView: 'focus-plugin:open-focus-view',
-	openPlanningView: 'focus-plugin:open-planning-view',
-	quickAddTask: 'focus-plugin:quick-add-task',
+	openFocusView: 'productivity-focus:open-view',
+	openPlanningView: 'productivity-focus:open-planning',
+	quickAddTask: 'productivity-focus:quick-add-task',
 } as const;

@@ -14,8 +14,6 @@ export class FocusSettingTab extends PluginSettingTab {
 		const { containerEl } = this;
 		containerEl.empty();
 
-		new Setting(containerEl).setName('Hotkeys').setHeading();
-
 		// ===== HOTKEYS SECTION =====
 		this.renderHotkeysSection(containerEl);
 
@@ -97,7 +95,7 @@ export class FocusSettingTab extends PluginSettingTab {
 				.setDesc('Manually scan vault for tasks and add to Unscheduled')
 				.addButton((button) =>
 					button
-						.setButtonText('Sync Tasks')
+						.setButtonText('Sync tasks')
 						.setCta()
 						.onClick(async () => {
 							button.setButtonText('Syncing...');
@@ -230,7 +228,7 @@ export class FocusSettingTab extends PluginSettingTab {
 				.setDesc(hotkeyText)
 				.addButton((button) =>
 					button
-						.setButtonText('Set Hotkey')
+						.setButtonText('Set hotkey')
 						.onClick(() => {
 							// Open Obsidian's hotkey settings and search for this command
 							// @ts-ignore - accessing internal API
