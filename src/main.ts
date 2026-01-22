@@ -91,6 +91,11 @@ export default class FocusPlugin extends Plugin {
 
 		// Ensure task file exists on load
 		await this.ensureTaskFileExists();
+
+		// Apply task file visibility setting
+		if (this.settings.hideTaskFileFromExplorer) {
+			await this.updateTaskFileVisibility();
+		}
 	}
 
 	onunload(): void {
@@ -544,6 +549,34 @@ export default class FocusPlugin extends Plugin {
 			const newFile = await this.app.vault.create(`${notePath}.md`, '');
 			await this.app.workspace.getLeaf().openFile(newFile);
 		}
+	}
+
+	/**
+	 * Update task file visibility in the file explorer
+	 * Uses Obsidian's userIgnoreFilters config
+	 */
+	async updateTaskFileVisibility(): Promise<void> {
+		const filePath = this.settings.taskFilePath;
+
+		// @ts-ignore - accessing internal API
+		const config = this.app.vault.config;
+		if (!config) return;
+
+		// Get current user ignore filters (hidden files)
+		let userIgnoreFilters: string[] = config.userIgnoreFilters || [];
+
+		if (this.settings.hideTaskFileFromExplorer) {
+			// Add to hidden files if not already there
+			if (!userIgnoreFilters.includes(filePath)) {
+				userIgnoreFilters.push(filePath);
+			}
+		} else {
+			// Remove from hidden files
+			userIgnoreFilters = userIgnoreFilters.filter(f => f !== filePath);
+		}
+
+		// @ts-ignore - accessing internal API
+		this.app.vault.setConfig('userIgnoreFilters', userIgnoreFilters);
 	}
 
 	/**

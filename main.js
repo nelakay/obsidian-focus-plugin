@@ -51,7 +51,9 @@ var DEFAULT_SETTINGS = {
   vaultSyncTag: "#focus",
   vaultSyncFolders: [],
   rolloverImmediateToThisWeek: true,
-  rolloverThisWeekToUnscheduled: true
+  rolloverThisWeekToUnscheduled: true,
+  hideCompletedTasks: false,
+  hideTaskFileFromExplorer: false
 };
 var FOCUS_VIEW_TYPE = "focus-view";
 var COMMAND_IDS = {
@@ -261,12 +263,17 @@ var FocusView = class extends import_obsidian.ItemView {
       attr: { "data-section": section }
     });
     this.setupDropZone(listEl, section, data);
-    const sortedTasks = [...tasks].sort((a, b) => {
-      if (a.completed === b.completed)
-        return 0;
-      return a.completed ? 1 : -1;
-    });
-    for (const task of sortedTasks) {
+    let displayTasks = [...tasks];
+    if (this.plugin.settings.hideCompletedTasks) {
+      displayTasks = displayTasks.filter((t) => !t.completed);
+    } else {
+      displayTasks.sort((a, b) => {
+        if (a.completed === b.completed)
+          return 0;
+        return a.completed ? 1 : -1;
+      });
+    }
+    for (const task of displayTasks) {
       this.renderTask(listEl, task, section, data);
     }
     if (tasks.length === 0) {
@@ -1084,6 +1091,21 @@ var FocusSettingTab = class extends import_obsidian5.PluginSettingTab {
         await this.plugin.saveSettings();
       })
     );
+    new import_obsidian5.Setting(containerEl).setName("Display").setHeading();
+    new import_obsidian5.Setting(containerEl).setName("Hide completed tasks").setDesc("Hide completed tasks from the Focus sidebar").addToggle(
+      (toggle) => toggle.setValue(this.plugin.settings.hideCompletedTasks).onChange(async (value) => {
+        this.plugin.settings.hideCompletedTasks = value;
+        await this.plugin.saveSettings();
+        this.plugin.refreshFocusView();
+      })
+    );
+    new import_obsidian5.Setting(containerEl).setName("Hide task file from explorer").setDesc("Hide the focus-tasks.md file from the file explorer").addToggle(
+      (toggle) => toggle.setValue(this.plugin.settings.hideTaskFileFromExplorer).onChange(async (value) => {
+        this.plugin.settings.hideTaskFileFromExplorer = value;
+        await this.plugin.saveSettings();
+        await this.plugin.updateTaskFileVisibility();
+      })
+    );
     new import_obsidian5.Setting(containerEl).setName("About").setDesc("Focus is a visibility firewall for your tasks. It helps you focus on what matters now by hiding everything else.").setHeading();
   }
   renderHotkeysSection(containerEl) {
@@ -1318,6 +1340,9 @@ var FocusPlugin = class extends import_obsidian6.Plugin {
     this.setupAutoSync();
     this.setupTaskFileWatcher();
     await this.ensureTaskFileExists();
+    if (this.settings.hideTaskFileFromExplorer) {
+      await this.updateTaskFileVisibility();
+    }
   }
   onunload() {
     if (this.endOfDayTimeout) {
@@ -1678,6 +1703,25 @@ var FocusPlugin = class extends import_obsidian6.Plugin {
       const newFile = await this.app.vault.create(`${notePath}.md`, "");
       await this.app.workspace.getLeaf().openFile(newFile);
     }
+  }
+  /**
+   * Update task file visibility in the file explorer
+   * Uses Obsidian's userIgnoreFilters config
+   */
+  async updateTaskFileVisibility() {
+    const filePath = this.settings.taskFilePath;
+    const config = this.app.vault.config;
+    if (!config)
+      return;
+    let userIgnoreFilters = config.userIgnoreFilters || [];
+    if (this.settings.hideTaskFileFromExplorer) {
+      if (!userIgnoreFilters.includes(filePath)) {
+        userIgnoreFilters.push(filePath);
+      }
+    } else {
+      userIgnoreFilters = userIgnoreFilters.filter((f) => f !== filePath);
+    }
+    this.app.vault.setConfig("userIgnoreFilters", userIgnoreFilters);
   }
   /**
    * Perform weekly rollover of tasks

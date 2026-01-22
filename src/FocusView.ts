@@ -264,13 +264,21 @@ export class FocusView extends ItemView {
 		// Make section a drop target
 		this.setupDropZone(listEl, section, data);
 
-		// Render tasks (active first, then completed)
-		const sortedTasks = [...tasks].sort((a, b) => {
-			if (a.completed === b.completed) return 0;
-			return a.completed ? 1 : -1;
-		});
+		// Filter and sort tasks
+		let displayTasks = [...tasks];
 
-		for (const task of sortedTasks) {
+		// Hide completed if setting is enabled
+		if (this.plugin.settings.hideCompletedTasks) {
+			displayTasks = displayTasks.filter(t => !t.completed);
+		} else {
+			// Sort: active first, then completed
+			displayTasks.sort((a, b) => {
+				if (a.completed === b.completed) return 0;
+				return a.completed ? 1 : -1;
+			});
+		}
+
+		for (const task of displayTasks) {
 			this.renderTask(listEl, task, section, data);
 		}
 

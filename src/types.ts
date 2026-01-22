@@ -62,6 +62,10 @@ export interface FocusPluginSettings {
 	// Rollover behavior
 	rolloverImmediateToThisWeek: boolean;
 	rolloverThisWeekToUnscheduled: boolean;
+
+	// Display options
+	hideCompletedTasks: boolean;
+	hideTaskFileFromExplorer: boolean;
 }
 
 export const DEFAULT_SETTINGS: FocusPluginSettings = {
@@ -76,6 +80,8 @@ export const DEFAULT_SETTINGS: FocusPluginSettings = {
 	vaultSyncFolders: [],
 	rolloverImmediateToThisWeek: true,
 	rolloverThisWeekToUnscheduled: true,
+	hideCompletedTasks: false,
+	hideTaskFileFromExplorer: false,
 };
 
 export const FOCUS_VIEW_TYPE = 'focus-view';

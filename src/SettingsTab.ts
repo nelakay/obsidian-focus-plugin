@@ -204,6 +204,35 @@ export class FocusSettingTab extends PluginSettingTab {
 					})
 			);
 
+		// ===== DISPLAY SECTION =====
+		new Setting(containerEl).setName('Display').setHeading();
+
+		new Setting(containerEl)
+			.setName('Hide completed tasks')
+			.setDesc('Hide completed tasks from the Focus sidebar')
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.hideCompletedTasks)
+					.onChange(async (value) => {
+						this.plugin.settings.hideCompletedTasks = value;
+						await this.plugin.saveSettings();
+						this.plugin.refreshFocusView();
+					})
+			);
+
+		new Setting(containerEl)
+			.setName('Hide task file from explorer')
+			.setDesc('Hide the focus-tasks.md file from the file explorer')
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.hideTaskFileFromExplorer)
+					.onChange(async (value) => {
+						this.plugin.settings.hideTaskFileFromExplorer = value;
+						await this.plugin.saveSettings();
+						await this.plugin.updateTaskFileVisibility();
+					})
+			);
+
 		// ===== ABOUT SECTION =====
 		new Setting(containerEl)
 			.setName('About')
