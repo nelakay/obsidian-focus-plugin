@@ -40,7 +40,7 @@ var DAY_NAMES = {
   6: "Saturday"
 };
 var DEFAULT_SETTINGS = {
-  taskFilePath: "Focus/tasks.md",
+  taskFilePath: "focus-tasks.md",
   maxImmediateTasks: 5,
   planningReminderEnabled: true,
   planningReminderDay: 0,
@@ -974,8 +974,8 @@ var FocusSettingTab = class extends import_obsidian5.PluginSettingTab {
     this.renderHotkeysSection(containerEl);
     new import_obsidian5.Setting(containerEl).setName("Tasks").setHeading();
     new import_obsidian5.Setting(containerEl).setName("Task file path").setDesc("The path to the markdown file that stores your tasks (relative to vault root)").addText(
-      (text) => text.setPlaceholder("Focus/tasks.md").setValue(this.plugin.settings.taskFilePath).onChange(async (value) => {
-        this.plugin.settings.taskFilePath = value || "Focus/tasks.md";
+      (text) => text.setPlaceholder("focus-tasks.md").setValue(this.plugin.settings.taskFilePath).onChange(async (value) => {
+        this.plugin.settings.taskFilePath = value || "focus-tasks.md";
         await this.plugin.saveSettings();
       })
     );

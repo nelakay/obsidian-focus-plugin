@@ -65,7 +65,7 @@ export interface FocusPluginSettings {
 }
 
 export const DEFAULT_SETTINGS: FocusPluginSettings = {
-	taskFilePath: 'Focus/tasks.md',
+	taskFilePath: 'focus-tasks.md',
 	maxImmediateTasks: 5,
 	planningReminderEnabled: true,
 	planningReminderDay: 0, // Sunday

@@ -25,10 +25,10 @@ export class FocusSettingTab extends PluginSettingTab {
 			.setDesc('The path to the markdown file that stores your tasks (relative to vault root)')
 			.addText((text) =>
 				text
-					.setPlaceholder('Focus/tasks.md')
+					.setPlaceholder('focus-tasks.md')
 					.setValue(this.plugin.settings.taskFilePath)
 					.onChange(async (value) => {
-						this.plugin.settings.taskFilePath = value || 'Focus/tasks.md';
+						this.plugin.settings.taskFilePath = value || 'focus-tasks.md';
 						await this.plugin.saveSettings();
 					})
 			);
