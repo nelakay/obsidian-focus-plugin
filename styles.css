@@ -520,3 +520,24 @@
 	display: flex;
 	justify-content: flex-end;
 }
+
+/* ===== Footer Link ===== */
+
+.focus-footer {
+	margin-top: 24px;
+	padding-top: 12px;
+	border-top: 1px solid var(--background-modifier-border);
+	text-align: center;
+}
+
+.focus-file-link {
+	font-size: 12px;
+	color: var(--text-muted);
+	text-decoration: none;
+	cursor: pointer;
+}
+
+.focus-file-link:hover {
+	color: var(--text-normal);
+	text-decoration: underline;
+}

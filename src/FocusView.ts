@@ -211,8 +211,30 @@ export class FocusView extends ItemView {
 		// This week section
 		this.renderSection(container, 'This week', 'thisWeek', this.data.tasks.thisWeek, this.data);
 
+		// Footer with link to task file
+		this.renderFooter(container);
+
 		// Restore selection if any
 		this.updateSelection();
+	}
+
+	private renderFooter(container: Element): void {
+		const footer = container.createEl('div', { cls: 'focus-footer' });
+
+		const fileLink = footer.createEl('a', {
+			text: 'Edit task file',
+			cls: 'focus-file-link',
+			href: '#',
+		});
+
+		fileLink.addEventListener('click', (e) => {
+			e.preventDefault();
+			const filePath = this.plugin.settings.taskFilePath;
+			const file = this.plugin.app.vault.getAbstractFileByPath(filePath);
+			if (file instanceof TFile) {
+				void this.plugin.app.workspace.getLeaf().openFile(file);
+			}
+		});
 	}
 
 	private renderSection(

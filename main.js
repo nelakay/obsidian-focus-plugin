@@ -228,7 +228,24 @@ var FocusView = class extends import_obsidian.ItemView {
     });
     this.renderSection(container, "Immediate", "immediate", this.data.tasks.immediate, this.data);
     this.renderSection(container, "This week", "thisWeek", this.data.tasks.thisWeek, this.data);
+    this.renderFooter(container);
     this.updateSelection();
+  }
+  renderFooter(container) {
+    const footer = container.createEl("div", { cls: "focus-footer" });
+    const fileLink = footer.createEl("a", {
+      text: "Edit task file",
+      cls: "focus-file-link",
+      href: "#"
+    });
+    fileLink.addEventListener("click", (e) => {
+      e.preventDefault();
+      const filePath = this.plugin.settings.taskFilePath;
+      const file = this.plugin.app.vault.getAbstractFileByPath(filePath);
+      if (file instanceof import_obsidian.TFile) {
+        void this.plugin.app.workspace.getLeaf().openFile(file);
+      }
+    });
   }
   renderSection(container, title, section, tasks, data) {
     const sectionEl = container.createEl("div", { cls: `focus-section focus-section-${section}` });
@@ -1299,6 +1316,7 @@ var FocusPlugin = class extends import_obsidian6.Plugin {
       this.scheduleEndOfDayReview();
     }
     this.setupAutoSync();
+    this.setupTaskFileWatcher();
     await this.ensureTaskFileExists();
   }
   onunload() {
@@ -1333,6 +1351,25 @@ var FocusPlugin = class extends import_obsidian6.Plugin {
         if (!file.path.endsWith(".md"))
           return;
         this.debouncedSync();
+      })
+    );
+  }
+  /**
+   * Watch the focus task file for direct edits and refresh the sidebar
+   */
+  setupTaskFileWatcher() {
+    this.registerEvent(
+      this.app.vault.on("modify", (file) => {
+        if (!(file instanceof import_obsidian6.TFile))
+          return;
+        if (file.path !== (0, import_obsidian6.normalizePath)(this.settings.taskFilePath))
+          return;
+        if (this.syncDebounceTimeout) {
+          clearTimeout(this.syncDebounceTimeout);
+        }
+        this.syncDebounceTimeout = setTimeout(() => {
+          this.refreshFocusView();
+        }, 500);
       })
     );
   }

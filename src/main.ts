@@ -86,6 +86,9 @@ export default class FocusPlugin extends Plugin {
 		// Setup auto-sync for vault tasks when files change
 		this.setupAutoSync();
 
+		// Watch the focus task file for direct edits
+		this.setupTaskFileWatcher();
+
 		// Ensure task file exists on load
 		await this.ensureTaskFileExists();
 	}
@@ -125,6 +128,28 @@ export default class FocusPlugin extends Plugin {
 				if (!file.path.endsWith('.md')) return;
 
 				this.debouncedSync();
+			})
+		);
+	}
+
+	/**
+	 * Watch the focus task file for direct edits and refresh the sidebar
+	 */
+	private setupTaskFileWatcher(): void {
+		this.registerEvent(
+			this.app.vault.on('modify', (file) => {
+				if (!(file instanceof TFile)) return;
+				// Only watch the focus task file
+				if (file.path !== normalizePath(this.settings.taskFilePath)) return;
+
+				// Debounce to avoid too many refreshes while typing
+				if (this.syncDebounceTimeout) {
+					clearTimeout(this.syncDebounceTimeout);
+				}
+
+				this.syncDebounceTimeout = setTimeout(() => {
+					this.refreshFocusView();
+				}, 500);
 			})
 		);
 	}
