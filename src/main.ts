@@ -556,27 +556,31 @@ export default class FocusPlugin extends Plugin {
 	 * Uses Obsidian's userIgnoreFilters config
 	 */
 	async updateTaskFileVisibility(): Promise<void> {
-		const filePath = this.settings.taskFilePath;
+		const filePath = normalizePath(this.settings.taskFilePath);
 
-		// @ts-ignore - accessing internal API
-		const config = this.app.vault.config;
-		if (!config) return;
+		// @ts-ignore - accessing internal API for config
+		const appConfig = this.app.vault.config || {};
 
 		// Get current user ignore filters (hidden files)
-		let userIgnoreFilters: string[] = config.userIgnoreFilters || [];
+		let userIgnoreFilters: string[] = appConfig.userIgnoreFilters || [];
 
 		if (this.settings.hideTaskFileFromExplorer) {
 			// Add to hidden files if not already there
 			if (!userIgnoreFilters.includes(filePath)) {
-				userIgnoreFilters.push(filePath);
+				userIgnoreFilters = [...userIgnoreFilters, filePath];
+				// @ts-ignore - accessing internal API
+				this.app.vault.setConfig('userIgnoreFilters', userIgnoreFilters);
+				new Notice(`${filePath} hidden from file explorer`);
 			}
 		} else {
 			// Remove from hidden files
-			userIgnoreFilters = userIgnoreFilters.filter(f => f !== filePath);
+			if (userIgnoreFilters.includes(filePath)) {
+				userIgnoreFilters = userIgnoreFilters.filter(f => f !== filePath);
+				// @ts-ignore - accessing internal API
+				this.app.vault.setConfig('userIgnoreFilters', userIgnoreFilters);
+				new Notice(`${filePath} shown in file explorer`);
+			}
 		}
-
-		// @ts-ignore - accessing internal API
-		this.app.vault.setConfig('userIgnoreFilters', userIgnoreFilters);
 	}
 
 	/**

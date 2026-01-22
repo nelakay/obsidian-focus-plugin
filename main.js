@@ -557,12 +557,30 @@ var PlanningModal = class extends import_obsidian3.Modal {
     contentEl.createEl("h2", { text: `Planning view \u2014 ${dateStr}` });
     this.renderThisWeekSection(contentEl);
     this.renderUnscheduledSection(contentEl);
+    this.renderFooter(contentEl);
     const actionsEl = contentEl.createEl("div", { cls: "focus-planning-actions" });
     const closeBtn = actionsEl.createEl("button", {
       text: "Done planning",
       cls: "mod-cta"
     });
     closeBtn.addEventListener("click", () => this.close());
+  }
+  renderFooter(container) {
+    const footer = container.createEl("div", { cls: "focus-footer" });
+    const fileLink = footer.createEl("a", {
+      text: "Edit task file",
+      cls: "focus-file-link",
+      href: "#"
+    });
+    fileLink.addEventListener("click", (e) => {
+      e.preventDefault();
+      const filePath = this.plugin.settings.taskFilePath;
+      const file = this.plugin.app.vault.getAbstractFileByPath(filePath);
+      if (file instanceof import_obsidian3.TFile) {
+        this.close();
+        void this.plugin.app.workspace.getLeaf().openFile(file);
+      }
+    });
   }
   renderGoalsSection(container) {
     const section = container.createEl("div", { cls: "focus-planning-section" });
@@ -1709,19 +1727,22 @@ var FocusPlugin = class extends import_obsidian6.Plugin {
    * Uses Obsidian's userIgnoreFilters config
    */
   async updateTaskFileVisibility() {
-    const filePath = this.settings.taskFilePath;
-    const config = this.app.vault.config;
-    if (!config)
-      return;
-    let userIgnoreFilters = config.userIgnoreFilters || [];
+    const filePath = (0, import_obsidian6.normalizePath)(this.settings.taskFilePath);
+    const appConfig = this.app.vault.config || {};
+    let userIgnoreFilters = appConfig.userIgnoreFilters || [];
     if (this.settings.hideTaskFileFromExplorer) {
       if (!userIgnoreFilters.includes(filePath)) {
-        userIgnoreFilters.push(filePath);
+        userIgnoreFilters = [...userIgnoreFilters, filePath];
+        this.app.vault.setConfig("userIgnoreFilters", userIgnoreFilters);
+        new import_obsidian6.Notice(`${filePath} hidden from file explorer`);
       }
     } else {
-      userIgnoreFilters = userIgnoreFilters.filter((f) => f !== filePath);
+      if (userIgnoreFilters.includes(filePath)) {
+        userIgnoreFilters = userIgnoreFilters.filter((f) => f !== filePath);
+        this.app.vault.setConfig("userIgnoreFilters", userIgnoreFilters);
+        new import_obsidian6.Notice(`${filePath} shown in file explorer`);
+      }
     }
-    this.app.vault.setConfig("userIgnoreFilters", userIgnoreFilters);
   }
   /**
    * Perform weekly rollover of tasks

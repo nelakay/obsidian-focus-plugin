@@ -1,4 +1,4 @@
-import { Modal, Notice, Menu } from 'obsidian';
+import { Modal, Notice, Menu, TFile } from 'obsidian';
 import { FocusData, Task, TaskSection, WeeklyGoal } from './types';
 import type FocusPlugin from './main';
 
@@ -42,6 +42,9 @@ export class PlanningModal extends Modal {
 		// Unscheduled Tasks
 		this.renderUnscheduledSection(contentEl);
 
+		// Footer with link to task file
+		this.renderFooter(contentEl);
+
 		// Action buttons
 		const actionsEl = contentEl.createEl('div', { cls: 'focus-planning-actions' });
 
@@ -50,6 +53,26 @@ export class PlanningModal extends Modal {
 			cls: 'mod-cta',
 		});
 		closeBtn.addEventListener('click', () => this.close());
+	}
+
+	private renderFooter(container: HTMLElement): void {
+		const footer = container.createEl('div', { cls: 'focus-footer' });
+
+		const fileLink = footer.createEl('a', {
+			text: 'Edit task file',
+			cls: 'focus-file-link',
+			href: '#',
+		});
+
+		fileLink.addEventListener('click', (e) => {
+			e.preventDefault();
+			const filePath = this.plugin.settings.taskFilePath;
+			const file = this.plugin.app.vault.getAbstractFileByPath(filePath);
+			if (file instanceof TFile) {
+				this.close();
+				void this.plugin.app.workspace.getLeaf().openFile(file);
+			}
+		});
 	}
 
 	private renderGoalsSection(container: HTMLElement): void {
