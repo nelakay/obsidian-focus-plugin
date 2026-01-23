@@ -220,19 +220,6 @@ export class FocusSettingTab extends PluginSettingTab {
 					})
 			);
 
-		new Setting(containerEl)
-			.setName('Hide task file from explorer')
-			.setDesc('Hide the focus-tasks.md file from the file explorer')
-			.addToggle((toggle) =>
-				toggle
-					.setValue(this.plugin.settings.hideTaskFileFromExplorer)
-					.onChange(async (value) => {
-						this.plugin.settings.hideTaskFileFromExplorer = value;
-						await this.plugin.saveSettings();
-						await this.plugin.updateTaskFileVisibility();
-					})
-			);
-
 		// ===== ABOUT SECTION =====
 		new Setting(containerEl)
 			.setName('About')

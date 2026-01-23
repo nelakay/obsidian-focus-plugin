@@ -52,8 +52,7 @@ var DEFAULT_SETTINGS = {
   vaultSyncFolders: [],
   rolloverImmediateToThisWeek: true,
   rolloverThisWeekToUnscheduled: true,
-  hideCompletedTasks: false,
-  hideTaskFileFromExplorer: false
+  hideCompletedTasks: false
 };
 var FOCUS_VIEW_TYPE = "focus-view";
 var COMMAND_IDS = {
@@ -220,9 +219,22 @@ var FocusView = class extends import_obsidian.ItemView {
     this.data = await this.plugin.loadTaskData();
     const header = container.createEl("div", { cls: "focus-header" });
     header.createEl("h2", { text: "Focus mode", cls: "focus-title" });
-    const addButton = header.createEl("button", {
+    const headerActions = header.createEl("div", { cls: "focus-header-actions" });
+    const toggleCompletedBtn = headerActions.createEl("button", {
+      cls: "focus-header-btn focus-toggle-completed-btn",
+      attr: {
+        title: this.plugin.settings.hideCompletedTasks ? "Show completed tasks" : "Hide completed tasks"
+      }
+    });
+    toggleCompletedBtn.innerHTML = this.plugin.settings.hideCompletedTasks ? '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>' : '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+    toggleCompletedBtn.addEventListener("click", async () => {
+      this.plugin.settings.hideCompletedTasks = !this.plugin.settings.hideCompletedTasks;
+      await this.plugin.saveSettings();
+      await this.render();
+    });
+    const addButton = headerActions.createEl("button", {
       text: "+",
-      cls: "focus-header-add-btn",
+      cls: "focus-header-btn focus-header-add-btn",
       attr: { title: "Add task" }
     });
     addButton.addEventListener("click", () => {
@@ -1117,13 +1129,6 @@ var FocusSettingTab = class extends import_obsidian5.PluginSettingTab {
         this.plugin.refreshFocusView();
       })
     );
-    new import_obsidian5.Setting(containerEl).setName("Hide task file from explorer").setDesc("Hide the focus-tasks.md file from the file explorer").addToggle(
-      (toggle) => toggle.setValue(this.plugin.settings.hideTaskFileFromExplorer).onChange(async (value) => {
-        this.plugin.settings.hideTaskFileFromExplorer = value;
-        await this.plugin.saveSettings();
-        await this.plugin.updateTaskFileVisibility();
-      })
-    );
     new import_obsidian5.Setting(containerEl).setName("About").setDesc("Focus is a visibility firewall for your tasks. It helps you focus on what matters now by hiding everything else.").setHeading();
   }
   renderHotkeysSection(containerEl) {
@@ -1358,9 +1363,6 @@ var FocusPlugin = class extends import_obsidian6.Plugin {
     this.setupAutoSync();
     this.setupTaskFileWatcher();
     await this.ensureTaskFileExists();
-    if (this.settings.hideTaskFileFromExplorer) {
-      await this.updateTaskFileVisibility();
-    }
   }
   onunload() {
     if (this.endOfDayTimeout) {
@@ -1456,6 +1458,7 @@ var FocusPlugin = class extends import_obsidian6.Plugin {
       reviewTime.setDate(reviewTime.getDate() + 1);
     }
     const msUntilReview = reviewTime.getTime() - now.getTime();
+    console.log(`Focus: End of day review scheduled for ${reviewTime.toLocaleString()}`);
     this.endOfDayTimeout = setTimeout(() => {
       this.showEndOfDayReview();
       this.scheduleEndOfDayReview();
@@ -1720,28 +1723,6 @@ var FocusPlugin = class extends import_obsidian6.Plugin {
     } else {
       const newFile = await this.app.vault.create(`${notePath}.md`, "");
       await this.app.workspace.getLeaf().openFile(newFile);
-    }
-  }
-  /**
-   * Update task file visibility in the file explorer
-   * Uses Obsidian's userIgnoreFilters config
-   */
-  async updateTaskFileVisibility() {
-    const filePath = (0, import_obsidian6.normalizePath)(this.settings.taskFilePath);
-    const appConfig = this.app.vault.config || {};
-    let userIgnoreFilters = appConfig.userIgnoreFilters || [];
-    if (this.settings.hideTaskFileFromExplorer) {
-      if (!userIgnoreFilters.includes(filePath)) {
-        userIgnoreFilters = [...userIgnoreFilters, filePath];
-        this.app.vault.setConfig("userIgnoreFilters", userIgnoreFilters);
-        new import_obsidian6.Notice(`${filePath} hidden from file explorer`);
-      }
-    } else {
-      if (userIgnoreFilters.includes(filePath)) {
-        userIgnoreFilters = userIgnoreFilters.filter((f) => f !== filePath);
-        this.app.vault.setConfig("userIgnoreFilters", userIgnoreFilters);
-        new import_obsidian6.Notice(`${filePath} shown in file explorer`);
-      }
     }
   }
   /**

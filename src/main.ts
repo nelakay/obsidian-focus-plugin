@@ -91,11 +91,6 @@ export default class FocusPlugin extends Plugin {
 
 		// Ensure task file exists on load
 		await this.ensureTaskFileExists();
-
-		// Apply task file visibility setting
-		if (this.settings.hideTaskFileFromExplorer) {
-			await this.updateTaskFileVisibility();
-		}
 	}
 
 	onunload(): void {
@@ -209,6 +204,9 @@ export default class FocusPlugin extends Plugin {
 		}
 
 		const msUntilReview = reviewTime.getTime() - now.getTime();
+
+		// Log for debugging - helps users understand when review is scheduled
+		console.log(`Focus: End of day review scheduled for ${reviewTime.toLocaleString()}`);
 
 		this.endOfDayTimeout = setTimeout(() => {
 			this.showEndOfDayReview();
@@ -548,38 +546,6 @@ export default class FocusPlugin extends Plugin {
 			// File doesn't exist, create it (Obsidian default behavior)
 			const newFile = await this.app.vault.create(`${notePath}.md`, '');
 			await this.app.workspace.getLeaf().openFile(newFile);
-		}
-	}
-
-	/**
-	 * Update task file visibility in the file explorer
-	 * Uses Obsidian's userIgnoreFilters config
-	 */
-	async updateTaskFileVisibility(): Promise<void> {
-		const filePath = normalizePath(this.settings.taskFilePath);
-
-		// @ts-ignore - accessing internal API for config
-		const appConfig = this.app.vault.config || {};
-
-		// Get current user ignore filters (hidden files)
-		let userIgnoreFilters: string[] = appConfig.userIgnoreFilters || [];
-
-		if (this.settings.hideTaskFileFromExplorer) {
-			// Add to hidden files if not already there
-			if (!userIgnoreFilters.includes(filePath)) {
-				userIgnoreFilters = [...userIgnoreFilters, filePath];
-				// @ts-ignore - accessing internal API
-				this.app.vault.setConfig('userIgnoreFilters', userIgnoreFilters);
-				new Notice(`${filePath} hidden from file explorer`);
-			}
-		} else {
-			// Remove from hidden files
-			if (userIgnoreFilters.includes(filePath)) {
-				userIgnoreFilters = userIgnoreFilters.filter(f => f !== filePath);
-				// @ts-ignore - accessing internal API
-				this.app.vault.setConfig('userIgnoreFilters', userIgnoreFilters);
-				new Notice(`${filePath} shown in file explorer`);
-			}
 		}
 	}
 

@@ -38,7 +38,13 @@
 	flex: 1 !important;
 }
 
-.focus-header-add-btn {
+.focus-header-actions {
+	display: flex !important;
+	align-items: center !important;
+	gap: 4px !important;
+}
+
+.focus-header-btn {
 	width: 28px !important;
 	height: 28px !important;
 	min-width: 28px !important;
@@ -46,8 +52,6 @@
 	border: none !important;
 	background: transparent !important;
 	color: var(--text-muted) !important;
-	font-size: 20px !important;
-	font-weight: 300 !important;
 	cursor: pointer !important;
 	border-radius: 4px !important;
 	display: flex !important;
@@ -57,9 +61,19 @@
 	flex-shrink: 0 !important;
 }
 
-.focus-header-add-btn:hover {
+.focus-header-btn:hover {
 	background: var(--background-modifier-hover) !important;
 	color: var(--text-normal) !important;
+}
+
+.focus-header-add-btn {
+	font-size: 20px !important;
+	font-weight: 300 !important;
+}
+
+.focus-toggle-completed-btn svg {
+	width: 16px !important;
+	height: 16px !important;
 }
 
 /* Section Styles */
