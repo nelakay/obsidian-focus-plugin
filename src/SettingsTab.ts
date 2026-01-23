@@ -204,22 +204,6 @@ export class FocusSettingTab extends PluginSettingTab {
 					})
 			);
 
-		// ===== DISPLAY SECTION =====
-		new Setting(containerEl).setName('Display').setHeading();
-
-		new Setting(containerEl)
-			.setName('Hide completed tasks')
-			.setDesc('Hide completed tasks from the Focus sidebar')
-			.addToggle((toggle) =>
-				toggle
-					.setValue(this.plugin.settings.hideCompletedTasks)
-					.onChange(async (value) => {
-						this.plugin.settings.hideCompletedTasks = value;
-						await this.plugin.saveSettings();
-						this.plugin.refreshFocusView();
-					})
-			);
-
 		// ===== ABOUT SECTION =====
 		new Setting(containerEl)
 			.setName('About')

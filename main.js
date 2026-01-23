@@ -1121,14 +1121,6 @@ var FocusSettingTab = class extends import_obsidian5.PluginSettingTab {
         await this.plugin.saveSettings();
       })
     );
-    new import_obsidian5.Setting(containerEl).setName("Display").setHeading();
-    new import_obsidian5.Setting(containerEl).setName("Hide completed tasks").setDesc("Hide completed tasks from the Focus sidebar").addToggle(
-      (toggle) => toggle.setValue(this.plugin.settings.hideCompletedTasks).onChange(async (value) => {
-        this.plugin.settings.hideCompletedTasks = value;
-        await this.plugin.saveSettings();
-        this.plugin.refreshFocusView();
-      })
-    );
     new import_obsidian5.Setting(containerEl).setName("About").setDesc("Focus is a visibility firewall for your tasks. It helps you focus on what matters now by hiding everything else.").setHeading();
   }
   renderHotkeysSection(containerEl) {
