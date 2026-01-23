@@ -360,6 +360,20 @@ export class FocusView extends ItemView {
 			sourceEl.createEl('span', { text: '📄' });
 		}
 
+		// URL indicator (if task has a link)
+		if (task.url) {
+			const urlEl = taskEl.createEl('a', {
+				cls: 'focus-url-indicator',
+				href: task.url,
+				attr: { title: task.url },
+			});
+			urlEl.createEl('span', { text: '🔗' });
+			urlEl.addEventListener('click', (e) => {
+				e.stopPropagation();
+				// Let the browser handle the link naturally
+			});
+		}
+
 		// Setup drag events (only for non-completed tasks)
 		if (!task.completed) {
 			this.setupDragEvents(taskEl, task, section);

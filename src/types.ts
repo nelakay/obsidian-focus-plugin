@@ -6,6 +6,7 @@ export interface Task {
 	goalId?: string; // Optional link to a weekly goal
 	sourceFile?: string; // For vault-synced tasks, tracks original file
 	sourceLine?: number; // Line number in source file
+	url?: string; // Optional URL link
 }
 
 export type TaskSection = 'immediate' | 'thisWeek' | 'unscheduled';

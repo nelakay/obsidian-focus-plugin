@@ -315,18 +315,18 @@ export default class FocusPlugin extends Plugin {
 	 * @param defaultToThisWeek - If true, the "Add to This Week" checkbox will be checked by default
 	 */
 	openAddTaskModal(defaultToThisWeek: boolean = false): void {
-		const modal = new AddTaskModal(this, defaultToThisWeek, (title, section) => {
-			void this.addTask(title, section);
+		const modal = new AddTaskModal(this, defaultToThisWeek, (title, section, url) => {
+			void this.addTask(title, section, url);
 		});
 		modal.open();
 	}
 
-	private async addTask(title: string, section: TaskSection): Promise<void> {
+	private async addTask(title: string, section: TaskSection, url?: string): Promise<void> {
 		const data = await this.loadTaskData();
 
 		// Check max immediate (though currently modal only supports thisWeek/unscheduled)
 		if (section === 'immediate') {
-			const activeImmediate = data.tasks.immediate.filter(t => !t.completed);
+			const activeImmediate = data.tasks.immediate.filter((t) => !t.completed);
 			if (activeImmediate.length >= this.settings.maxImmediateTasks) {
 				new Notice(`Maximum ${this.settings.maxImmediateTasks} tasks in immediate. Move one out first.`);
 				return;
@@ -338,6 +338,7 @@ export default class FocusPlugin extends Plugin {
 			title,
 			completed: false,
 			section: section,
+			url,
 		};
 
 		data.tasks[section].push(newTask);
@@ -345,11 +346,8 @@ export default class FocusPlugin extends Plugin {
 
 		this.refreshFocusView();
 
-		const sectionName = section === 'immediate'
-			? 'immediate'
-			: section === 'thisWeek'
-				? 'this week'
-				: 'unscheduled';
+		const sectionName =
+			section === 'immediate' ? 'immediate' : section === 'thisWeek' ? 'this week' : 'unscheduled';
 		new Notice(`Task added to ${sectionName}`);
 	}
 

@@ -10,19 +10,29 @@ function generateId(): string {
 /**
  * Parses a markdown task line into a Task object
  * Format: "- [ ] Task title" or "- [x] Task title"
+ * Optional URL: "- [ ] Task title 🔗 https://example.com"
  */
 function parseTaskLine(line: string, section: TaskSection): Task | null {
 	const match = line.match(/^-\s*\[([ xX])\]\s*(.+)$/);
 	if (!match) return null;
 
 	const completed = match[1].toLowerCase() === 'x';
-	const title = match[2].trim();
+	let title = match[2].trim();
+	let url: string | undefined;
+
+	// Extract URL if present (format: 🔗 https://...)
+	const urlMatch = title.match(/\s*🔗\s*(https?:\/\/\S+)\s*$/);
+	if (urlMatch) {
+		url = urlMatch[1];
+		title = title.replace(urlMatch[0], '').trim();
+	}
 
 	return {
 		id: generateId(),
 		title,
 		completed,
 		section,
+		url,
 	};
 }
 
@@ -115,7 +125,8 @@ export function parseTaskFile(content: string): FocusData {
  */
 function serializeTask(task: Task): string {
 	const checkbox = task.completed ? '[x]' : '[ ]';
-	return `- ${checkbox} ${task.title}`;
+	const urlPart = task.url ? ` 🔗 ${task.url}` : '';
+	return `- ${checkbox} ${task.title}${urlPart}`;
 }
 
 /**

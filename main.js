@@ -323,6 +323,17 @@ var FocusView = class extends import_obsidian.ItemView {
       });
       sourceEl.createEl("span", { text: "\u{1F4C4}" });
     }
+    if (task.url) {
+      const urlEl = taskEl.createEl("a", {
+        cls: "focus-url-indicator",
+        href: task.url,
+        attr: { title: task.url }
+      });
+      urlEl.createEl("span", { text: "\u{1F517}" });
+      urlEl.addEventListener("click", (e) => {
+        e.stopPropagation();
+      });
+    }
     if (!task.completed) {
       this.setupDragEvents(taskEl, task, section);
     }
@@ -492,6 +503,7 @@ var AddTaskModal = class extends import_obsidian2.Modal {
   constructor(plugin, defaultToThisWeek, onSubmit) {
     super(plugin.app);
     this.taskTitle = "";
+    this.taskUrl = "";
     this.plugin = plugin;
     this.defaultToThisWeek = defaultToThisWeek;
     this.addToThisWeek = defaultToThisWeek;
@@ -513,6 +525,11 @@ var AddTaskModal = class extends import_obsidian2.Modal {
       });
       setTimeout(() => text.inputEl.focus(), 10);
     });
+    new import_obsidian2.Setting(contentEl).setName("URL").setDesc("Optional link for this task").addText((text) => {
+      text.setPlaceholder("https://...").onChange((value) => {
+        this.taskUrl = value;
+      });
+    });
     new import_obsidian2.Setting(contentEl).setName("Add to this week").setDesc("Schedule this task for the current week").addToggle((toggle) => {
       toggle.setValue(this.addToThisWeek).onChange((value) => {
         this.addToThisWeek = value;
@@ -532,7 +549,8 @@ var AddTaskModal = class extends import_obsidian2.Modal {
   }
   submit() {
     const section = this.addToThisWeek ? "thisWeek" : "unscheduled";
-    this.onSubmit(this.taskTitle.trim(), section);
+    const url = this.taskUrl.trim() || void 0;
+    this.onSubmit(this.taskTitle.trim(), section, url);
     this.close();
   }
   onClose() {
@@ -1182,12 +1200,19 @@ function parseTaskLine(line, section) {
   if (!match)
     return null;
   const completed = match[1].toLowerCase() === "x";
-  const title = match[2].trim();
+  let title = match[2].trim();
+  let url;
+  const urlMatch = title.match(/\s*🔗\s*(https?:\/\/\S+)\s*$/);
+  if (urlMatch) {
+    url = urlMatch[1];
+    title = title.replace(urlMatch[0], "").trim();
+  }
   return {
     id: generateId(),
     title,
     completed,
-    section
+    section,
+    url
   };
 }
 function parseFrontmatter(content) {
@@ -1253,7 +1278,8 @@ function parseTaskFile(content) {
 }
 function serializeTask(task) {
   const checkbox = task.completed ? "[x]" : "[ ]";
-  return `- ${checkbox} ${task.title}`;
+  const urlPart = task.url ? ` \u{1F517} ${task.url}` : "";
+  return `- ${checkbox} ${task.title}${urlPart}`;
 }
 function serializeTaskFile(data) {
   const lines = [];
@@ -1535,12 +1561,12 @@ var FocusPlugin = class extends import_obsidian6.Plugin {
    * @param defaultToThisWeek - If true, the "Add to This Week" checkbox will be checked by default
    */
   openAddTaskModal(defaultToThisWeek = false) {
-    const modal = new AddTaskModal(this, defaultToThisWeek, (title, section) => {
-      void this.addTask(title, section);
+    const modal = new AddTaskModal(this, defaultToThisWeek, (title, section, url) => {
+      void this.addTask(title, section, url);
     });
     modal.open();
   }
-  async addTask(title, section) {
+  async addTask(title, section, url) {
     const data = await this.loadTaskData();
     if (section === "immediate") {
       const activeImmediate = data.tasks.immediate.filter((t) => !t.completed);
@@ -1553,7 +1579,8 @@ var FocusPlugin = class extends import_obsidian6.Plugin {
       id: Date.now().toString(36) + Math.random().toString(36).substring(2, 11),
       title,
       completed: false,
-      section
+      section,
+      url
     };
     data.tasks[section].push(newTask);
     await this.saveTaskData(data);
