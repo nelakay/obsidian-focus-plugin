@@ -109,7 +109,7 @@ Tasks can contain `[[wiki-links]]` to your notes. Click to navigate directly to 
 
 | Setting | Description | Default |
 |---------|-------------|---------|
-| Task file path | Where Focus stores your tasks | `Focus/tasks.md` |
+| Task file path | Where Focus stores your tasks | `focus-tasks.md` |
 | Maximum immediate tasks | Hard limit on Immediate section | 5 |
 | Weekly planning reminder | Prompt to plan on a specific day | Enabled (Sunday) |
 | End of day review | Daily reflection prompt | Disabled |
@@ -129,7 +129,7 @@ Configure these in Obsidian's Hotkeys settings:
 
 ## Data Storage
 
-Focus stores your tasks in a markdown file within your vault (default: `Focus/tasks.md`). This means:
+Focus stores your tasks in a markdown file within your vault (default: `focus-tasks.md`). This means:
 - Your data stays in your vault
 - It's plain text and version-controllable
 - It syncs with your existing Obsidian sync solution
@@ -165,7 +165,7 @@ Contributions are welcome! Please read our contributing guidelines before submit
 
 ```bash
 # Clone the repo
-git clone https://github.com/yourusername/obsidian-focus-plugin.git
+git clone https://github.com/nelakay/obsidian-focus-plugin.git
 
 # Install dependencies
 npm install
@@ -193,9 +193,9 @@ src/
 
 ## Support
 
-- [Report a bug](https://github.com/yourusername/obsidian-focus-plugin/issues)
-- [Request a feature](https://github.com/yourusername/obsidian-focus-plugin/issues)
-- [Discussions](https://github.com/yourusername/obsidian-focus-plugin/discussions)
+- [Report a bug](https://github.com/nelakay/obsidian-focus-plugin/issues)
+- [Request a feature](https://github.com/nelakay/obsidian-focus-plugin/issues)
+- [Discussions](https://github.com/nelakay/obsidian-focus-plugin/discussions)
 
 ## License
 
