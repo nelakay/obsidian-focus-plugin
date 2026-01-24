@@ -195,7 +195,6 @@ src/
 
 - [Report a bug](https://github.com/nelakay/obsidian-focus-plugin/issues)
 - [Request a feature](https://github.com/nelakay/obsidian-focus-plugin/issues)
-- [Discussions](https://github.com/nelakay/obsidian-focus-plugin/discussions)
 
 ## License
 
