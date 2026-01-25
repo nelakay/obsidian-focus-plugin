@@ -335,7 +335,21 @@ export class PlanningModal extends Modal {
 
 		const actionsEl = taskEl.createEl('div', { cls: 'focus-task-actions' });
 
-		// Section badge only (no goal button)
+		// Deprioritize button (send back to unscheduled)
+		if (!task.completed) {
+			const deprioritizeBtn = actionsEl.createEl('button', {
+				text: '↓',
+				cls: 'focus-deprioritize-btn',
+				attr: { title: 'Move to unscheduled' },
+			});
+			deprioritizeBtn.addEventListener('click', () => {
+				void this.moveTaskToSection(task, task.section, 'unscheduled').then(() => {
+					new Notice(`"${task.title}" moved to unscheduled`);
+				});
+			});
+		}
+
+		// Section badge
 		const sectionLabel = task.section === 'immediate' ? 'Immediate' : 'This week';
 		actionsEl.createEl('span', {
 			text: sectionLabel,

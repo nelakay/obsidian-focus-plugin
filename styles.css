@@ -431,6 +431,22 @@
 	opacity: 0.9;
 }
 
+.focus-deprioritize-btn {
+	padding: 5px 10px;
+	font-size: 12px;
+	background: var(--background-modifier-border);
+	color: var(--text-muted);
+	border: none;
+	border-radius: 6px;
+	cursor: pointer;
+	font-weight: 500;
+}
+
+.focus-deprioritize-btn:hover {
+	background: var(--background-modifier-hover);
+	color: var(--text-normal);
+}
+
 .focus-delete-btn {
 	background: none;
 	border: none;

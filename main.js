@@ -818,6 +818,18 @@ var PlanningModal = class extends import_obsidian3.Modal {
       cls: "focus-task-text"
     });
     const actionsEl = taskEl.createEl("div", { cls: "focus-task-actions" });
+    if (!task.completed) {
+      const deprioritizeBtn = actionsEl.createEl("button", {
+        text: "\u2193",
+        cls: "focus-deprioritize-btn",
+        attr: { title: "Move to unscheduled" }
+      });
+      deprioritizeBtn.addEventListener("click", () => {
+        void this.moveTaskToSection(task, task.section, "unscheduled").then(() => {
+          new import_obsidian3.Notice(`"${task.title}" moved to unscheduled`);
+        });
+      });
+    }
     const sectionLabel = task.section === "immediate" ? "Immediate" : "This week";
     actionsEl.createEl("span", {
       text: sectionLabel,
