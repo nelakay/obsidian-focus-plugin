@@ -106,6 +106,15 @@ export class EndOfDayModal extends Modal {
 		// Actions
 		const actionsEl = contentEl.createEl('div', { cls: 'focus-review-actions' });
 
+		// Open Daily Note button
+		const dailyNoteBtn = actionsEl.createEl('button', {
+			text: 'Open daily note',
+			cls: 'focus-daily-note-btn',
+		});
+		dailyNoteBtn.addEventListener('click', () => {
+			void this.plugin.openOrCreateDailyNote();
+		});
+
 		const doneBtn = actionsEl.createEl('button', {
 			text: 'Done',
 			cls: 'mod-cta',

@@ -52,7 +52,11 @@ var DEFAULT_SETTINGS = {
   vaultSyncFolders: [],
   rolloverImmediateToThisWeek: true,
   rolloverThisWeekToUnscheduled: true,
-  hideCompletedTasks: false
+  hideCompletedTasks: false,
+  dailyNotesFolder: "",
+  dailyNotesFormat: "YYYY-MM-DD",
+  weeklyNotesFolder: "",
+  weeklyNotesFormat: "YYYY-[W]WW"
 };
 var FOCUS_VIEW_TYPE = "focus-view";
 var COMMAND_IDS = {
@@ -334,6 +338,15 @@ var FocusView = class extends import_obsidian.ItemView {
         e.stopPropagation();
       });
     }
+    if (task.doDate) {
+      const isOverdue = this.isTaskOverdue(task);
+      const dateDisplay = this.formatDoDate(task.doDate, task.doTime);
+      const dateEl = taskEl.createEl("span", {
+        cls: `focus-date-indicator ${isOverdue ? "focus-date-overdue" : ""}`,
+        attr: { title: `Scheduled: ${task.doDate}${task.doTime ? " " + task.doTime : ""}` }
+      });
+      dateEl.createEl("span", { text: `\u{1F4C5} ${dateDisplay}` });
+    }
     if (!task.completed) {
       this.setupDragEvents(taskEl, task, section);
     }
@@ -341,6 +354,57 @@ var FocusView = class extends import_obsidian.ItemView {
       e.preventDefault();
       this.showContextMenu(e, task, section, data);
     });
+  }
+  /**
+   * Render task title with clickable [[wiki-links]]
+   */
+  /**
+   * Check if a task is overdue based on its do date/time
+   */
+  isTaskOverdue(task) {
+    if (!task.doDate || task.completed)
+      return false;
+    const now = /* @__PURE__ */ new Date();
+    const today = now.toISOString().split("T")[0];
+    if (task.doDate < today) {
+      return true;
+    }
+    if (task.doDate === today && task.doTime) {
+      const [hours, minutes] = task.doTime.split(":").map(Number);
+      const taskTime = new Date(now);
+      taskTime.setHours(hours, minutes, 0, 0);
+      return now > taskTime;
+    }
+    return false;
+  }
+  /**
+   * Format do date for display (e.g., "Today", "Tomorrow", "Jan 27", "Jan 27 2:30pm")
+   */
+  formatDoDate(doDate, doTime) {
+    const now = /* @__PURE__ */ new Date();
+    const today = now.toISOString().split("T")[0];
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowStr = tomorrow.toISOString().split("T")[0];
+    let dateStr;
+    if (doDate === today) {
+      dateStr = "Today";
+    } else if (doDate === tomorrowStr) {
+      dateStr = "Tomorrow";
+    } else {
+      const date = /* @__PURE__ */ new Date(doDate + "T00:00:00");
+      const month = date.toLocaleDateString("en-US", { month: "short" });
+      const day = date.getDate();
+      dateStr = `${month} ${day}`;
+    }
+    if (doTime) {
+      const [hours, minutes] = doTime.split(":").map(Number);
+      const period = hours >= 12 ? "pm" : "am";
+      const hour12 = hours % 12 || 12;
+      const timeStr = minutes === 0 ? `${hour12}${period}` : `${hour12}:${minutes.toString().padStart(2, "0")}${period}`;
+      return `${dateStr} ${timeStr}`;
+    }
+    return dateStr;
   }
   /**
    * Render task title with clickable [[wiki-links]]
@@ -504,6 +568,8 @@ var AddTaskModal = class extends import_obsidian2.Modal {
     super(plugin.app);
     this.taskTitle = "";
     this.taskUrl = "";
+    this.taskDoDate = "";
+    this.taskDoTime = "";
     this.plugin = plugin;
     this.defaultToThisWeek = defaultToThisWeek;
     this.addToThisWeek = defaultToThisWeek;
@@ -530,6 +596,44 @@ var AddTaskModal = class extends import_obsidian2.Modal {
         this.taskUrl = value;
       });
     });
+    const doDateSetting = new import_obsidian2.Setting(contentEl).setName("Reminder date").setDesc("When to be reminded about this task");
+    const quickButtonsContainer = doDateSetting.controlEl.createDiv("focus-quick-date-buttons");
+    const todayBtn = quickButtonsContainer.createEl("button", { text: "Today", cls: "focus-quick-date-btn" });
+    todayBtn.addEventListener("click", () => {
+      const today = (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
+      this.taskDoDate = today;
+      dateInput.value = today;
+    });
+    const tomorrowBtn = quickButtonsContainer.createEl("button", { text: "Tomorrow", cls: "focus-quick-date-btn" });
+    tomorrowBtn.addEventListener("click", () => {
+      const tomorrow = /* @__PURE__ */ new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const dateStr = tomorrow.toISOString().split("T")[0];
+      this.taskDoDate = dateStr;
+      dateInput.value = dateStr;
+    });
+    const nextWeekBtn = quickButtonsContainer.createEl("button", { text: "Next week", cls: "focus-quick-date-btn" });
+    nextWeekBtn.addEventListener("click", () => {
+      const nextWeek = /* @__PURE__ */ new Date();
+      nextWeek.setDate(nextWeek.getDate() + 7);
+      const dateStr = nextWeek.toISOString().split("T")[0];
+      this.taskDoDate = dateStr;
+      dateInput.value = dateStr;
+    });
+    const dateInput = doDateSetting.controlEl.createEl("input", {
+      type: "date",
+      cls: "focus-date-input"
+    });
+    dateInput.addEventListener("change", (e) => {
+      this.taskDoDate = e.target.value;
+    });
+    new import_obsidian2.Setting(contentEl).setName("Reminder time").setDesc("Optional time for the reminder").addText((text) => {
+      text.inputEl.type = "time";
+      text.inputEl.addClass("focus-time-input");
+      text.onChange((value) => {
+        this.taskDoTime = value;
+      });
+    });
     new import_obsidian2.Setting(contentEl).setName("Add to this week").setDesc("Schedule this task for the current week").addToggle((toggle) => {
       toggle.setValue(this.addToThisWeek).onChange((value) => {
         this.addToThisWeek = value;
@@ -550,7 +654,9 @@ var AddTaskModal = class extends import_obsidian2.Modal {
   submit() {
     const section = this.addToThisWeek ? "thisWeek" : "unscheduled";
     const url = this.taskUrl.trim() || void 0;
-    this.onSubmit(this.taskTitle.trim(), section, url);
+    const doDate = this.taskDoDate || void 0;
+    const doTime = this.taskDoTime || void 0;
+    this.onSubmit(this.taskTitle.trim(), section, url, doDate, doTime);
     this.close();
   }
   onClose() {
@@ -589,6 +695,13 @@ var PlanningModal = class extends import_obsidian3.Modal {
     this.renderUnscheduledSection(contentEl);
     this.renderFooter(contentEl);
     const actionsEl = contentEl.createEl("div", { cls: "focus-planning-actions" });
+    const weeklyNoteBtn = actionsEl.createEl("button", {
+      text: "Open weekly note",
+      cls: "focus-weekly-note-btn"
+    });
+    weeklyNoteBtn.addEventListener("click", () => {
+      void this.plugin.openOrCreateWeeklyNote();
+    });
     const closeBtn = actionsEl.createEl("button", {
       text: "Done planning",
       cls: "mod-cta"
@@ -1033,6 +1146,13 @@ var EndOfDayModal = class extends import_obsidian4.Modal {
       messageSection.createEl("p", { text: "Every step counts. Tomorrow is a new day." });
     }
     const actionsEl = contentEl.createEl("div", { cls: "focus-review-actions" });
+    const dailyNoteBtn = actionsEl.createEl("button", {
+      text: "Open daily note",
+      cls: "focus-daily-note-btn"
+    });
+    dailyNoteBtn.addEventListener("click", () => {
+      void this.plugin.openOrCreateDailyNote();
+    });
     const doneBtn = actionsEl.createEl("button", {
       text: "Done",
       cls: "mod-cta"
@@ -1151,6 +1271,31 @@ var FocusSettingTab = class extends import_obsidian5.PluginSettingTab {
         await this.plugin.saveSettings();
       })
     );
+    new import_obsidian5.Setting(containerEl).setName("Periodic notes").setHeading();
+    new import_obsidian5.Setting(containerEl).setName("Daily notes folder").setDesc("Folder where daily notes are stored (leave empty for vault root)").addText(
+      (text) => text.setPlaceholder("daily-notes/").setValue(this.plugin.settings.dailyNotesFolder).onChange(async (value) => {
+        this.plugin.settings.dailyNotesFolder = value;
+        await this.plugin.saveSettings();
+      })
+    );
+    new import_obsidian5.Setting(containerEl).setName("Daily notes format").setDesc("Date format for daily note filenames (e.g., YYYY-MM-DD)").addText(
+      (text) => text.setPlaceholder("YYYY-MM-DD").setValue(this.plugin.settings.dailyNotesFormat).onChange(async (value) => {
+        this.plugin.settings.dailyNotesFormat = value || "YYYY-MM-DD";
+        await this.plugin.saveSettings();
+      })
+    );
+    new import_obsidian5.Setting(containerEl).setName("Weekly notes folder").setDesc("Folder where weekly notes are stored (leave empty for vault root)").addText(
+      (text) => text.setPlaceholder("weekly-notes/").setValue(this.plugin.settings.weeklyNotesFolder).onChange(async (value) => {
+        this.plugin.settings.weeklyNotesFolder = value;
+        await this.plugin.saveSettings();
+      })
+    );
+    new import_obsidian5.Setting(containerEl).setName("Weekly notes format").setDesc("Date format for weekly note filenames (e.g., YYYY-[W]WW)").addText(
+      (text) => text.setPlaceholder("YYYY-[W]WW").setValue(this.plugin.settings.weeklyNotesFormat).onChange(async (value) => {
+        this.plugin.settings.weeklyNotesFormat = value || "YYYY-[W]WW";
+        await this.plugin.saveSettings();
+      })
+    );
     new import_obsidian5.Setting(containerEl).setName("About").setDesc("Focus is a visibility firewall for your tasks. It helps you focus on what matters now by hiding everything else.").setHeading();
   }
   renderHotkeysSection(containerEl) {
@@ -1214,17 +1359,31 @@ function parseTaskLine(line, section) {
   const completed = match[1].toLowerCase() === "x";
   let title = match[2].trim();
   let url;
+  let doDate;
+  let doTime;
   const urlMatch = title.match(/\s*🔗\s*(https?:\/\/\S+)\s*$/);
   if (urlMatch) {
     url = urlMatch[1];
     title = title.replace(urlMatch[0], "").trim();
+  }
+  const timeMatch = title.match(/\s*⏰\s*(\d{1,2}:\d{2})\s*$/);
+  if (timeMatch) {
+    doTime = timeMatch[1];
+    title = title.replace(timeMatch[0], "").trim();
+  }
+  const dateMatch = title.match(/\s*📅\s*(\d{4}-\d{2}-\d{2})\s*$/);
+  if (dateMatch) {
+    doDate = dateMatch[1];
+    title = title.replace(dateMatch[0], "").trim();
   }
   return {
     id: generateId(),
     title,
     completed,
     section,
-    url
+    url,
+    doDate,
+    doTime
   };
 }
 function parseFrontmatter(content) {
@@ -1290,8 +1449,10 @@ function parseTaskFile(content) {
 }
 function serializeTask(task) {
   const checkbox = task.completed ? "[x]" : "[ ]";
+  const datePart = task.doDate ? ` \u{1F4C5} ${task.doDate}` : "";
+  const timePart = task.doTime ? ` \u23F0 ${task.doTime}` : "";
   const urlPart = task.url ? ` \u{1F517} ${task.url}` : "";
-  return `- ${checkbox} ${task.title}${urlPart}`;
+  return `- ${checkbox} ${task.title}${datePart}${timePart}${urlPart}`;
 }
 function serializeTaskFile(data) {
   const lines = [];
@@ -1573,12 +1734,12 @@ var FocusPlugin = class extends import_obsidian6.Plugin {
    * @param defaultToThisWeek - If true, the "Add to This Week" checkbox will be checked by default
    */
   openAddTaskModal(defaultToThisWeek = false) {
-    const modal = new AddTaskModal(this, defaultToThisWeek, (title, section, url) => {
-      void this.addTask(title, section, url);
+    const modal = new AddTaskModal(this, defaultToThisWeek, (title, section, url, doDate, doTime) => {
+      void this.addTask(title, section, url, doDate, doTime);
     });
     modal.open();
   }
-  async addTask(title, section, url) {
+  async addTask(title, section, url, doDate, doTime) {
     const data = await this.loadTaskData();
     if (section === "immediate") {
       const activeImmediate = data.tasks.immediate.filter((t) => !t.completed);
@@ -1592,7 +1753,9 @@ var FocusPlugin = class extends import_obsidian6.Plugin {
       title,
       completed: false,
       section,
-      url
+      url,
+      doDate,
+      doTime
     };
     data.tasks[section].push(newTask);
     await this.saveTaskData(data);
@@ -1754,6 +1917,78 @@ var FocusPlugin = class extends import_obsidian6.Plugin {
     } else {
       const newFile = await this.app.vault.create(`${notePath}.md`, "");
       await this.app.workspace.getLeaf().openFile(newFile);
+    }
+  }
+  /**
+   * Format a date according to a format string (e.g., YYYY-MM-DD, YYYY-[W]WW)
+   * Brackets [...] are used to escape literal characters (like moment.js)
+   */
+  formatDate(date, format) {
+    const year = date.getFullYear();
+    const month = (date.getMonth() + 1).toString().padStart(2, "0");
+    const day = date.getDate().toString().padStart(2, "0");
+    const tempDate = new Date(date.getTime());
+    tempDate.setHours(0, 0, 0, 0);
+    tempDate.setDate(tempDate.getDate() + 3 - (tempDate.getDay() + 6) % 7);
+    const week1 = new Date(tempDate.getFullYear(), 0, 4);
+    const weekNumber = (1 + Math.round(((tempDate.getTime() - week1.getTime()) / 864e5 - 3 + (week1.getDay() + 6) % 7) / 7)).toString().padStart(2, "0");
+    const literals = [];
+    let result = format.replace(/\[([^\]]+)\]/g, (_, content) => {
+      literals.push(content);
+      return `\0${literals.length - 1}\0`;
+    });
+    result = result.replace("YYYY", year.toString()).replace("MM", month).replace("DD", day).replace("WW", weekNumber);
+    result = result.replace(/\x00(\d+)\x00/g, (_, index) => literals[parseInt(index)]);
+    return result;
+  }
+  /**
+   * Open or create today's daily note
+   */
+  async openOrCreateDailyNote() {
+    const today = /* @__PURE__ */ new Date();
+    const filename = this.formatDate(today, this.settings.dailyNotesFormat);
+    const folder = this.settings.dailyNotesFolder.replace(/\/$/, "");
+    const filePath = folder ? `${folder}/${filename}.md` : `${filename}.md`;
+    let file = this.app.vault.getAbstractFileByPath(filePath);
+    if (!file) {
+      if (folder) {
+        const folderExists = this.app.vault.getAbstractFileByPath(folder);
+        if (!folderExists) {
+          await this.app.vault.createFolder(folder);
+        }
+      }
+      file = await this.app.vault.create(filePath, `# ${filename}
+
+`);
+      new import_obsidian6.Notice(`Created daily note: ${filename}`);
+    }
+    if (file instanceof import_obsidian6.TFile) {
+      await this.app.workspace.getLeaf().openFile(file);
+    }
+  }
+  /**
+   * Open or create this week's weekly note
+   */
+  async openOrCreateWeeklyNote() {
+    const today = /* @__PURE__ */ new Date();
+    const filename = this.formatDate(today, this.settings.weeklyNotesFormat);
+    const folder = this.settings.weeklyNotesFolder.replace(/\/$/, "");
+    const filePath = folder ? `${folder}/${filename}.md` : `${filename}.md`;
+    let file = this.app.vault.getAbstractFileByPath(filePath);
+    if (!file) {
+      if (folder) {
+        const folderExists = this.app.vault.getAbstractFileByPath(folder);
+        if (!folderExists) {
+          await this.app.vault.createFolder(folder);
+        }
+      }
+      file = await this.app.vault.create(filePath, `# ${filename}
+
+`);
+      new import_obsidian6.Notice(`Created weekly note: ${filename}`);
+    }
+    if (file instanceof import_obsidian6.TFile) {
+      await this.app.workspace.getLeaf().openFile(file);
     }
   }
   /**

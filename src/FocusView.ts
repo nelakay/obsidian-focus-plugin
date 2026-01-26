@@ -374,6 +374,17 @@ export class FocusView extends ItemView {
 			});
 		}
 
+		// Do date indicator (if task has a scheduled date)
+		if (task.doDate) {
+			const isOverdue = this.isTaskOverdue(task);
+			const dateDisplay = this.formatDoDate(task.doDate, task.doTime);
+			const dateEl = taskEl.createEl('span', {
+				cls: `focus-date-indicator ${isOverdue ? 'focus-date-overdue' : ''}`,
+				attr: { title: `Scheduled: ${task.doDate}${task.doTime ? ' ' + task.doTime : ''}` },
+			});
+			dateEl.createEl('span', { text: `📅 ${dateDisplay}` });
+		}
+
 		// Setup drag events (only for non-completed tasks)
 		if (!task.completed) {
 			this.setupDragEvents(taskEl, task, section);
@@ -384,6 +395,67 @@ export class FocusView extends ItemView {
 			e.preventDefault();
 			this.showContextMenu(e, task, section, data);
 		});
+	}
+
+	/**
+	 * Render task title with clickable [[wiki-links]]
+	 */
+	/**
+	 * Check if a task is overdue based on its do date/time
+	 */
+	private isTaskOverdue(task: Task): boolean {
+		if (!task.doDate || task.completed) return false;
+
+		const now = new Date();
+		const today = now.toISOString().split('T')[0];
+
+		if (task.doDate < today) {
+			return true;
+		}
+
+		if (task.doDate === today && task.doTime) {
+			const [hours, minutes] = task.doTime.split(':').map(Number);
+			const taskTime = new Date(now);
+			taskTime.setHours(hours, minutes, 0, 0);
+			return now > taskTime;
+		}
+
+		return false;
+	}
+
+	/**
+	 * Format do date for display (e.g., "Today", "Tomorrow", "Jan 27", "Jan 27 2:30pm")
+	 */
+	private formatDoDate(doDate: string, doTime?: string): string {
+		const now = new Date();
+		const today = now.toISOString().split('T')[0];
+
+		const tomorrow = new Date(now);
+		tomorrow.setDate(tomorrow.getDate() + 1);
+		const tomorrowStr = tomorrow.toISOString().split('T')[0];
+
+		let dateStr: string;
+
+		if (doDate === today) {
+			dateStr = 'Today';
+		} else if (doDate === tomorrowStr) {
+			dateStr = 'Tomorrow';
+		} else {
+			const date = new Date(doDate + 'T00:00:00');
+			const month = date.toLocaleDateString('en-US', { month: 'short' });
+			const day = date.getDate();
+			dateStr = `${month} ${day}`;
+		}
+
+		if (doTime) {
+			const [hours, minutes] = doTime.split(':').map(Number);
+			const period = hours >= 12 ? 'pm' : 'am';
+			const hour12 = hours % 12 || 12;
+			const timeStr = minutes === 0 ? `${hour12}${period}` : `${hour12}:${minutes.toString().padStart(2, '0')}${period}`;
+			return `${dateStr} ${timeStr}`;
+		}
+
+		return dateStr;
 	}
 
 	/**

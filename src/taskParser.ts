@@ -11,6 +11,8 @@ function generateId(): string {
  * Parses a markdown task line into a Task object
  * Format: "- [ ] Task title" or "- [x] Task title"
  * Optional URL: "- [ ] Task title 🔗 https://example.com"
+ * Optional do date: "- [ ] Task title 📅 2026-01-27"
+ * Optional do time: "- [ ] Task title 📅 2026-01-27 ⏰ 14:30"
  */
 function parseTaskLine(line: string, section: TaskSection): Task | null {
 	const match = line.match(/^-\s*\[([ xX])\]\s*(.+)$/);
@@ -19,6 +21,8 @@ function parseTaskLine(line: string, section: TaskSection): Task | null {
 	const completed = match[1].toLowerCase() === 'x';
 	let title = match[2].trim();
 	let url: string | undefined;
+	let doDate: string | undefined;
+	let doTime: string | undefined;
 
 	// Extract URL if present (format: 🔗 https://...)
 	const urlMatch = title.match(/\s*🔗\s*(https?:\/\/\S+)\s*$/);
@@ -27,12 +31,28 @@ function parseTaskLine(line: string, section: TaskSection): Task | null {
 		title = title.replace(urlMatch[0], '').trim();
 	}
 
+	// Extract do time if present (format: ⏰ HH:MM)
+	const timeMatch = title.match(/\s*⏰\s*(\d{1,2}:\d{2})\s*$/);
+	if (timeMatch) {
+		doTime = timeMatch[1];
+		title = title.replace(timeMatch[0], '').trim();
+	}
+
+	// Extract do date if present (format: 📅 YYYY-MM-DD)
+	const dateMatch = title.match(/\s*📅\s*(\d{4}-\d{2}-\d{2})\s*$/);
+	if (dateMatch) {
+		doDate = dateMatch[1];
+		title = title.replace(dateMatch[0], '').trim();
+	}
+
 	return {
 		id: generateId(),
 		title,
 		completed,
 		section,
 		url,
+		doDate,
+		doTime,
 	};
 }
 
@@ -125,8 +145,10 @@ export function parseTaskFile(content: string): FocusData {
  */
 function serializeTask(task: Task): string {
 	const checkbox = task.completed ? '[x]' : '[ ]';
+	const datePart = task.doDate ? ` 📅 ${task.doDate}` : '';
+	const timePart = task.doTime ? ` ⏰ ${task.doTime}` : '';
 	const urlPart = task.url ? ` 🔗 ${task.url}` : '';
-	return `- ${checkbox} ${task.title}${urlPart}`;
+	return `- ${checkbox} ${task.title}${datePart}${timePart}${urlPart}`;
 }
 
 /**

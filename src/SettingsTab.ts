@@ -204,6 +204,61 @@ export class FocusSettingTab extends PluginSettingTab {
 					})
 			);
 
+		// ===== PERIODIC NOTES SECTION =====
+		new Setting(containerEl).setName('Periodic notes').setHeading();
+
+		new Setting(containerEl)
+			.setName('Daily notes folder')
+			.setDesc('Folder where daily notes are stored (leave empty for vault root)')
+			.addText((text) =>
+				text
+					.setPlaceholder('daily-notes/')
+					.setValue(this.plugin.settings.dailyNotesFolder)
+					.onChange(async (value) => {
+						this.plugin.settings.dailyNotesFolder = value;
+						await this.plugin.saveSettings();
+					})
+			);
+
+		new Setting(containerEl)
+			.setName('Daily notes format')
+			.setDesc('Date format for daily note filenames (e.g., YYYY-MM-DD)')
+			.addText((text) =>
+				text
+					.setPlaceholder('YYYY-MM-DD')
+					.setValue(this.plugin.settings.dailyNotesFormat)
+					.onChange(async (value) => {
+						this.plugin.settings.dailyNotesFormat = value || 'YYYY-MM-DD';
+						await this.plugin.saveSettings();
+					})
+			);
+
+		new Setting(containerEl)
+			.setName('Weekly notes folder')
+			.setDesc('Folder where weekly notes are stored (leave empty for vault root)')
+			.addText((text) =>
+				text
+					.setPlaceholder('weekly-notes/')
+					.setValue(this.plugin.settings.weeklyNotesFolder)
+					.onChange(async (value) => {
+						this.plugin.settings.weeklyNotesFolder = value;
+						await this.plugin.saveSettings();
+					})
+			);
+
+		new Setting(containerEl)
+			.setName('Weekly notes format')
+			.setDesc('Date format for weekly note filenames (e.g., YYYY-[W]WW)')
+			.addText((text) =>
+				text
+					.setPlaceholder('YYYY-[W]WW')
+					.setValue(this.plugin.settings.weeklyNotesFormat)
+					.onChange(async (value) => {
+						this.plugin.settings.weeklyNotesFormat = value || 'YYYY-[W]WW';
+						await this.plugin.saveSettings();
+					})
+			);
+
 		// ===== ABOUT SECTION =====
 		new Setting(containerEl)
 			.setName('About')

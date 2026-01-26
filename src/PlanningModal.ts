@@ -48,6 +48,15 @@ export class PlanningModal extends Modal {
 		// Action buttons
 		const actionsEl = contentEl.createEl('div', { cls: 'focus-planning-actions' });
 
+		// Open Weekly Note button
+		const weeklyNoteBtn = actionsEl.createEl('button', {
+			text: 'Open weekly note',
+			cls: 'focus-weekly-note-btn',
+		});
+		weeklyNoteBtn.addEventListener('click', () => {
+			void this.plugin.openOrCreateWeeklyNote();
+		});
+
 		const closeBtn = actionsEl.createEl('button', {
 			text: 'Done planning',
 			cls: 'mod-cta',

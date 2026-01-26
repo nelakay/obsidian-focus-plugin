@@ -7,6 +7,8 @@ export interface Task {
 	sourceFile?: string; // For vault-synced tasks, tracks original file
 	sourceLine?: number; // Line number in source file
 	url?: string; // Optional URL link
+	doDate?: string; // ISO date: "2026-01-27" - when to be reminded
+	doTime?: string; // 24h time: "14:30"
 }
 
 export type TaskSection = 'immediate' | 'thisWeek' | 'unscheduled';
@@ -66,6 +68,12 @@ export interface FocusPluginSettings {
 
 	// Display options
 	hideCompletedTasks: boolean;
+
+	// Periodic notes
+	dailyNotesFolder: string;
+	dailyNotesFormat: string;
+	weeklyNotesFolder: string;
+	weeklyNotesFormat: string;
 }
 
 export const DEFAULT_SETTINGS: FocusPluginSettings = {
@@ -81,6 +89,10 @@ export const DEFAULT_SETTINGS: FocusPluginSettings = {
 	rolloverImmediateToThisWeek: true,
 	rolloverThisWeekToUnscheduled: true,
 	hideCompletedTasks: false,
+	dailyNotesFolder: '',
+	dailyNotesFormat: 'YYYY-MM-DD',
+	weeklyNotesFolder: '',
+	weeklyNotesFormat: 'YYYY-[W]WW',
 };
 
 export const FOCUS_VIEW_TYPE = 'focus-view';

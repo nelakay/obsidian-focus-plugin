@@ -315,13 +315,13 @@ export default class FocusPlugin extends Plugin {
 	 * @param defaultToThisWeek - If true, the "Add to This Week" checkbox will be checked by default
 	 */
 	openAddTaskModal(defaultToThisWeek: boolean = false): void {
-		const modal = new AddTaskModal(this, defaultToThisWeek, (title, section, url) => {
-			void this.addTask(title, section, url);
+		const modal = new AddTaskModal(this, defaultToThisWeek, (title, section, url, doDate, doTime) => {
+			void this.addTask(title, section, url, doDate, doTime);
 		});
 		modal.open();
 	}
 
-	private async addTask(title: string, section: TaskSection, url?: string): Promise<void> {
+	private async addTask(title: string, section: TaskSection, url?: string, doDate?: string, doTime?: string): Promise<void> {
 		const data = await this.loadTaskData();
 
 		// Check max immediate (though currently modal only supports thisWeek/unscheduled)
@@ -339,6 +339,8 @@ export default class FocusPlugin extends Plugin {
 			completed: false,
 			section: section,
 			url,
+			doDate,
+			doTime,
 		};
 
 		data.tasks[section].push(newTask);
@@ -544,6 +546,102 @@ export default class FocusPlugin extends Plugin {
 			// File doesn't exist, create it (Obsidian default behavior)
 			const newFile = await this.app.vault.create(`${notePath}.md`, '');
 			await this.app.workspace.getLeaf().openFile(newFile);
+		}
+	}
+
+	/**
+	 * Format a date according to a format string (e.g., YYYY-MM-DD, YYYY-[W]WW)
+	 * Brackets [...] are used to escape literal characters (like moment.js)
+	 */
+	private formatDate(date: Date, format: string): string {
+		const year = date.getFullYear();
+		const month = (date.getMonth() + 1).toString().padStart(2, '0');
+		const day = date.getDate().toString().padStart(2, '0');
+
+		// Calculate ISO week number
+		const tempDate = new Date(date.getTime());
+		tempDate.setHours(0, 0, 0, 0);
+		tempDate.setDate(tempDate.getDate() + 3 - ((tempDate.getDay() + 6) % 7));
+		const week1 = new Date(tempDate.getFullYear(), 0, 4);
+		const weekNumber = (1 + Math.round(((tempDate.getTime() - week1.getTime()) / 86400000 - 3 + ((week1.getDay() + 6) % 7)) / 7))
+			.toString()
+			.padStart(2, '0');
+
+		// Extract and preserve bracketed literals (e.g., [W] -> W)
+		const literals: string[] = [];
+		let result = format.replace(/\[([^\]]+)\]/g, (_, content) => {
+			literals.push(content);
+			return `\x00${literals.length - 1}\x00`;
+		});
+
+		// Do replacements
+		result = result
+			.replace('YYYY', year.toString())
+			.replace('MM', month)
+			.replace('DD', day)
+			.replace('WW', weekNumber);
+
+		// Restore literals
+		result = result.replace(/\x00(\d+)\x00/g, (_, index) => literals[parseInt(index)]);
+
+		return result;
+	}
+
+	/**
+	 * Open or create today's daily note
+	 */
+	async openOrCreateDailyNote(): Promise<void> {
+		const today = new Date();
+		const filename = this.formatDate(today, this.settings.dailyNotesFormat);
+		const folder = this.settings.dailyNotesFolder.replace(/\/$/, ''); // Remove trailing slash
+		const filePath = folder ? `${folder}/${filename}.md` : `${filename}.md`;
+
+		let file = this.app.vault.getAbstractFileByPath(filePath);
+
+		if (!file) {
+			// Create the folder if it doesn't exist
+			if (folder) {
+				const folderExists = this.app.vault.getAbstractFileByPath(folder);
+				if (!folderExists) {
+					await this.app.vault.createFolder(folder);
+				}
+			}
+			// Create the file
+			file = await this.app.vault.create(filePath, `# ${filename}\n\n`);
+			new Notice(`Created daily note: ${filename}`);
+		}
+
+		if (file instanceof TFile) {
+			await this.app.workspace.getLeaf().openFile(file);
+		}
+	}
+
+	/**
+	 * Open or create this week's weekly note
+	 */
+	async openOrCreateWeeklyNote(): Promise<void> {
+		const today = new Date();
+		const filename = this.formatDate(today, this.settings.weeklyNotesFormat);
+		const folder = this.settings.weeklyNotesFolder.replace(/\/$/, ''); // Remove trailing slash
+		const filePath = folder ? `${folder}/${filename}.md` : `${filename}.md`;
+
+		let file = this.app.vault.getAbstractFileByPath(filePath);
+
+		if (!file) {
+			// Create the folder if it doesn't exist
+			if (folder) {
+				const folderExists = this.app.vault.getAbstractFileByPath(folder);
+				if (!folderExists) {
+					await this.app.vault.createFolder(folder);
+				}
+			}
+			// Create the file
+			file = await this.app.vault.create(filePath, `# ${filename}\n\n`);
+			new Notice(`Created weekly note: ${filename}`);
+		}
+
+		if (file instanceof TFile) {
+			await this.app.workspace.getLeaf().openFile(file);
 		}
 	}
 

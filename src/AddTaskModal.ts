@@ -7,13 +7,15 @@ export class AddTaskModal extends Modal {
 	defaultToThisWeek: boolean;
 	taskTitle: string = '';
 	taskUrl: string = '';
+	taskDoDate: string = '';
+	taskDoTime: string = '';
 	addToThisWeek: boolean;
-	onSubmit: (title: string, section: TaskSection, url?: string) => void;
+	onSubmit: (title: string, section: TaskSection, url?: string, doDate?: string, doTime?: string) => void;
 
 	constructor(
 		plugin: FocusPlugin,
 		defaultToThisWeek: boolean,
-		onSubmit: (title: string, section: TaskSection, url?: string) => void
+		onSubmit: (title: string, section: TaskSection, url?: string, doDate?: string, doTime?: string) => void
 	) {
 		super(plugin.app);
 		this.plugin = plugin;
@@ -57,6 +59,59 @@ export class AddTaskModal extends Modal {
 					});
 			});
 
+		// Do date setting with quick buttons
+		const doDateSetting = new Setting(contentEl)
+			.setName('Reminder date')
+			.setDesc('When to be reminded about this task');
+
+		// Add quick-set buttons
+		const quickButtonsContainer = doDateSetting.controlEl.createDiv('focus-quick-date-buttons');
+
+		const todayBtn = quickButtonsContainer.createEl('button', { text: 'Today', cls: 'focus-quick-date-btn' });
+		todayBtn.addEventListener('click', () => {
+			const today = new Date().toISOString().split('T')[0];
+			this.taskDoDate = today;
+			dateInput.value = today;
+		});
+
+		const tomorrowBtn = quickButtonsContainer.createEl('button', { text: 'Tomorrow', cls: 'focus-quick-date-btn' });
+		tomorrowBtn.addEventListener('click', () => {
+			const tomorrow = new Date();
+			tomorrow.setDate(tomorrow.getDate() + 1);
+			const dateStr = tomorrow.toISOString().split('T')[0];
+			this.taskDoDate = dateStr;
+			dateInput.value = dateStr;
+		});
+
+		const nextWeekBtn = quickButtonsContainer.createEl('button', { text: 'Next week', cls: 'focus-quick-date-btn' });
+		nextWeekBtn.addEventListener('click', () => {
+			const nextWeek = new Date();
+			nextWeek.setDate(nextWeek.getDate() + 7);
+			const dateStr = nextWeek.toISOString().split('T')[0];
+			this.taskDoDate = dateStr;
+			dateInput.value = dateStr;
+		});
+
+		const dateInput = doDateSetting.controlEl.createEl('input', {
+			type: 'date',
+			cls: 'focus-date-input'
+		});
+		dateInput.addEventListener('change', (e) => {
+			this.taskDoDate = (e.target as HTMLInputElement).value;
+		});
+
+		// Do time setting
+		new Setting(contentEl)
+			.setName('Reminder time')
+			.setDesc('Optional time for the reminder')
+			.addText((text) => {
+				text.inputEl.type = 'time';
+				text.inputEl.addClass('focus-time-input');
+				text.onChange((value) => {
+					this.taskDoTime = value;
+				});
+			});
+
 		new Setting(contentEl)
 			.setName('Add to this week')
 			.setDesc('Schedule this task for the current week')
@@ -91,7 +146,9 @@ export class AddTaskModal extends Modal {
 	private submit(): void {
 		const section: TaskSection = this.addToThisWeek ? 'thisWeek' : 'unscheduled';
 		const url = this.taskUrl.trim() || undefined;
-		this.onSubmit(this.taskTitle.trim(), section, url);
+		const doDate = this.taskDoDate || undefined;
+		const doTime = this.taskDoTime || undefined;
+		this.onSubmit(this.taskTitle.trim(), section, url, doDate, doTime);
 		this.close();
 	}
 

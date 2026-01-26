@@ -233,6 +233,22 @@
 	opacity: 1;
 }
 
+/* Do date indicator */
+.focus-date-indicator {
+	font-size: 11px;
+	margin-left: 4px;
+	padding: 2px 6px;
+	background: var(--background-modifier-border);
+	border-radius: 4px;
+	color: var(--text-muted);
+	white-space: nowrap;
+}
+
+.focus-date-indicator.focus-date-overdue {
+	background: color-mix(in srgb, var(--text-error) 20%, transparent);
+	color: var(--text-error);
+}
+
 /* Empty State */
 .focus-empty-state {
 	padding: 20px 16px;
@@ -279,6 +295,45 @@
 
 .focus-add-task-modal input[type="text"] {
 	width: 100%;
+}
+
+/* Date picker styles */
+.focus-quick-date-buttons {
+	display: flex;
+	gap: 4px;
+	margin-right: 8px;
+}
+
+.focus-quick-date-btn {
+	padding: 4px 8px;
+	font-size: 11px;
+	background: var(--background-modifier-border);
+	border: none;
+	border-radius: 4px;
+	color: var(--text-muted);
+	cursor: pointer;
+	transition: all 0.15s ease;
+}
+
+.focus-quick-date-btn:hover {
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
+
+.focus-date-input,
+.focus-time-input {
+	padding: 6px 10px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	background: var(--background-primary);
+	color: var(--text-normal);
+	font-size: 14px;
+}
+
+.focus-date-input:focus,
+.focus-time-input:focus {
+	border-color: var(--interactive-accent);
+	outline: none;
 }
 
 /* ===== Planning Modal ===== */
@@ -563,6 +618,23 @@
 	margin-top: 24px;
 	display: flex;
 	justify-content: flex-end;
+	gap: 8px;
+}
+
+.focus-daily-note-btn,
+.focus-weekly-note-btn {
+	padding: 8px 16px;
+	background: var(--background-modifier-border);
+	color: var(--text-normal);
+	border: none;
+	border-radius: 6px;
+	cursor: pointer;
+	font-size: 14px;
+}
+
+.focus-daily-note-btn:hover,
+.focus-weekly-note-btn:hover {
+	background: var(--background-modifier-hover);
 }
 
 /* ===== Footer Link ===== */
