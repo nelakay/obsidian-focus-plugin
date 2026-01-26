@@ -342,7 +342,29 @@ export class PlanningModal extends Modal {
 			cls: 'focus-task-text',
 		});
 
+		// Show do date if set
+		if (task.doDate) {
+			const dateDisplay = this.formatDoDate(task.doDate, task.doTime);
+			taskEl.createEl('span', {
+				text: `📅 ${dateDisplay}`,
+				cls: 'focus-planning-date',
+			});
+		}
+
 		const actionsEl = taskEl.createEl('div', { cls: 'focus-task-actions' });
+
+		// Date picker button
+		if (!task.completed) {
+			const dateBtn = actionsEl.createEl('button', {
+				text: '📅',
+				cls: 'focus-date-btn',
+				attr: { title: task.doDate ? 'Change reminder date' : 'Set reminder date' },
+			});
+			dateBtn.addEventListener('click', (e) => {
+				e.stopPropagation();
+				this.showDatePicker(e, task);
+			});
+		}
 
 		// Deprioritize button (send back to unscheduled)
 		if (!task.completed) {
@@ -536,6 +558,105 @@ export class PlanningModal extends Modal {
 
 		// Also refresh the focus view if open
 		this.plugin.refreshFocusView();
+	}
+
+	private showDatePicker(e: MouseEvent, task: Task): void {
+		const menu = new Menu();
+
+		// Quick date options
+		menu.addItem((item) => {
+			item
+				.setTitle('Today')
+				.setIcon('calendar')
+				.onClick(() => {
+					task.doDate = new Date().toISOString().split('T')[0];
+					void this.plugin.saveTaskData(this.data!).then(() => {
+						this.render();
+						this.plugin.refreshFocusView();
+					});
+				});
+		});
+
+		menu.addItem((item) => {
+			item
+				.setTitle('Tomorrow')
+				.setIcon('calendar')
+				.onClick(() => {
+					const tomorrow = new Date();
+					tomorrow.setDate(tomorrow.getDate() + 1);
+					task.doDate = tomorrow.toISOString().split('T')[0];
+					void this.plugin.saveTaskData(this.data!).then(() => {
+						this.render();
+						this.plugin.refreshFocusView();
+					});
+				});
+		});
+
+		menu.addItem((item) => {
+			item
+				.setTitle('Next week')
+				.setIcon('calendar')
+				.onClick(() => {
+					const nextWeek = new Date();
+					nextWeek.setDate(nextWeek.getDate() + 7);
+					task.doDate = nextWeek.toISOString().split('T')[0];
+					void this.plugin.saveTaskData(this.data!).then(() => {
+						this.render();
+						this.plugin.refreshFocusView();
+					});
+				});
+		});
+
+		if (task.doDate) {
+			menu.addSeparator();
+			menu.addItem((item) => {
+				item
+					.setTitle('Clear date')
+					.setIcon('x')
+					.onClick(() => {
+						delete task.doDate;
+						delete task.doTime;
+						void this.plugin.saveTaskData(this.data!).then(() => {
+							this.render();
+							this.plugin.refreshFocusView();
+						});
+					});
+			});
+		}
+
+		menu.showAtMouseEvent(e);
+	}
+
+	private formatDoDate(doDate: string, doTime?: string): string {
+		const now = new Date();
+		const today = now.toISOString().split('T')[0];
+
+		const tomorrow = new Date(now);
+		tomorrow.setDate(tomorrow.getDate() + 1);
+		const tomorrowStr = tomorrow.toISOString().split('T')[0];
+
+		let dateStr: string;
+
+		if (doDate === today) {
+			dateStr = 'Today';
+		} else if (doDate === tomorrowStr) {
+			dateStr = 'Tomorrow';
+		} else {
+			const date = new Date(doDate + 'T00:00:00');
+			const month = date.toLocaleDateString('en-US', { month: 'short' });
+			const day = date.getDate();
+			dateStr = `${month} ${day}`;
+		}
+
+		if (doTime) {
+			const [hours, minutes] = doTime.split(':').map(Number);
+			const period = hours >= 12 ? 'pm' : 'am';
+			const hour12 = hours % 12 || 12;
+			const timeStr = minutes === 0 ? `${hour12}${period}` : `${hour12}:${minutes.toString().padStart(2, '0')}${period}`;
+			return `${dateStr} ${timeStr}`;
+		}
+
+		return dateStr;
 	}
 
 	onClose(): void {

@@ -282,13 +282,31 @@ var FocusView = class extends import_obsidian.ItemView {
     let displayTasks = [...tasks];
     if (this.plugin.settings.hideCompletedTasks) {
       displayTasks = displayTasks.filter((t) => !t.completed);
-    } else {
-      displayTasks.sort((a, b) => {
-        if (a.completed === b.completed)
-          return 0;
-        return a.completed ? 1 : -1;
-      });
     }
+    displayTasks.sort((a, b) => {
+      if (a.completed !== b.completed) {
+        return a.completed ? 1 : -1;
+      }
+      if (!a.completed && !b.completed) {
+        if (a.doDate && !b.doDate)
+          return -1;
+        if (!a.doDate && b.doDate)
+          return 1;
+        if (a.doDate && b.doDate) {
+          const dateCompare = a.doDate.localeCompare(b.doDate);
+          if (dateCompare !== 0)
+            return dateCompare;
+          if (a.doTime && b.doTime) {
+            return a.doTime.localeCompare(b.doTime);
+          }
+          if (a.doTime && !b.doTime)
+            return -1;
+          if (!a.doTime && b.doTime)
+            return 1;
+        }
+      }
+      return 0;
+    });
     for (const task of displayTasks) {
       this.renderTask(listEl, task, section, data);
     }
@@ -930,7 +948,25 @@ var PlanningModal = class extends import_obsidian3.Modal {
       text: `${checkbox} ${task.title}`,
       cls: "focus-task-text"
     });
+    if (task.doDate) {
+      const dateDisplay = this.formatDoDate(task.doDate, task.doTime);
+      taskEl.createEl("span", {
+        text: `\u{1F4C5} ${dateDisplay}`,
+        cls: "focus-planning-date"
+      });
+    }
     const actionsEl = taskEl.createEl("div", { cls: "focus-task-actions" });
+    if (!task.completed) {
+      const dateBtn = actionsEl.createEl("button", {
+        text: "\u{1F4C5}",
+        cls: "focus-date-btn",
+        attr: { title: task.doDate ? "Change reminder date" : "Set reminder date" }
+      });
+      dateBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        this.showDatePicker(e, task);
+      });
+    }
     if (!task.completed) {
       const deprioritizeBtn = actionsEl.createEl("button", {
         text: "\u2193",
@@ -1056,6 +1092,80 @@ var PlanningModal = class extends import_obsidian3.Modal {
     await this.plugin.saveTaskData(this.data);
     this.render();
     this.plugin.refreshFocusView();
+  }
+  showDatePicker(e, task) {
+    const menu = new import_obsidian3.Menu();
+    menu.addItem((item) => {
+      item.setTitle("Today").setIcon("calendar").onClick(() => {
+        task.doDate = (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
+        void this.plugin.saveTaskData(this.data).then(() => {
+          this.render();
+          this.plugin.refreshFocusView();
+        });
+      });
+    });
+    menu.addItem((item) => {
+      item.setTitle("Tomorrow").setIcon("calendar").onClick(() => {
+        const tomorrow = /* @__PURE__ */ new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        task.doDate = tomorrow.toISOString().split("T")[0];
+        void this.plugin.saveTaskData(this.data).then(() => {
+          this.render();
+          this.plugin.refreshFocusView();
+        });
+      });
+    });
+    menu.addItem((item) => {
+      item.setTitle("Next week").setIcon("calendar").onClick(() => {
+        const nextWeek = /* @__PURE__ */ new Date();
+        nextWeek.setDate(nextWeek.getDate() + 7);
+        task.doDate = nextWeek.toISOString().split("T")[0];
+        void this.plugin.saveTaskData(this.data).then(() => {
+          this.render();
+          this.plugin.refreshFocusView();
+        });
+      });
+    });
+    if (task.doDate) {
+      menu.addSeparator();
+      menu.addItem((item) => {
+        item.setTitle("Clear date").setIcon("x").onClick(() => {
+          delete task.doDate;
+          delete task.doTime;
+          void this.plugin.saveTaskData(this.data).then(() => {
+            this.render();
+            this.plugin.refreshFocusView();
+          });
+        });
+      });
+    }
+    menu.showAtMouseEvent(e);
+  }
+  formatDoDate(doDate, doTime) {
+    const now = /* @__PURE__ */ new Date();
+    const today = now.toISOString().split("T")[0];
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowStr = tomorrow.toISOString().split("T")[0];
+    let dateStr;
+    if (doDate === today) {
+      dateStr = "Today";
+    } else if (doDate === tomorrowStr) {
+      dateStr = "Tomorrow";
+    } else {
+      const date = /* @__PURE__ */ new Date(doDate + "T00:00:00");
+      const month = date.toLocaleDateString("en-US", { month: "short" });
+      const day = date.getDate();
+      dateStr = `${month} ${day}`;
+    }
+    if (doTime) {
+      const [hours, minutes] = doTime.split(":").map(Number);
+      const period = hours >= 12 ? "pm" : "am";
+      const hour12 = hours % 12 || 12;
+      const timeStr = minutes === 0 ? `${hour12}${period}` : `${hour12}:${minutes.toString().padStart(2, "0")}${period}`;
+      return `${dateStr} ${timeStr}`;
+    }
+    return dateStr;
   }
   onClose() {
     const { contentEl } = this;

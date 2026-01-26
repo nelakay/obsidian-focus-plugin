@@ -290,13 +290,37 @@ export class FocusView extends ItemView {
 		// Hide completed if setting is enabled
 		if (this.plugin.settings.hideCompletedTasks) {
 			displayTasks = displayTasks.filter(t => !t.completed);
-		} else {
-			// Sort: active first, then completed
-			displayTasks.sort((a, b) => {
-				if (a.completed === b.completed) return 0;
-				return a.completed ? 1 : -1;
-			});
 		}
+
+		// Sort: active first, then by do date, then completed last
+		displayTasks.sort((a, b) => {
+			// Completed tasks always go last
+			if (a.completed !== b.completed) {
+				return a.completed ? 1 : -1;
+			}
+
+			// For active tasks, sort by do date
+			if (!a.completed && !b.completed) {
+				// Tasks with do dates come before tasks without
+				if (a.doDate && !b.doDate) return -1;
+				if (!a.doDate && b.doDate) return 1;
+
+				// Both have do dates - sort chronologically
+				if (a.doDate && b.doDate) {
+					const dateCompare = a.doDate.localeCompare(b.doDate);
+					if (dateCompare !== 0) return dateCompare;
+
+					// Same date - sort by time
+					if (a.doTime && b.doTime) {
+						return a.doTime.localeCompare(b.doTime);
+					}
+					if (a.doTime && !b.doTime) return -1;
+					if (!a.doTime && b.doTime) return 1;
+				}
+			}
+
+			return 0;
+		});
 
 		for (const task of displayTasks) {
 			this.renderTask(listEl, task, section, data);

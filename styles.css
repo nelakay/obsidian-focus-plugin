@@ -502,6 +502,27 @@
 	color: var(--text-normal);
 }
 
+.focus-date-btn {
+	padding: 4px 8px;
+	font-size: 12px;
+	background: transparent;
+	color: var(--text-muted);
+	border: none;
+	border-radius: 4px;
+	cursor: pointer;
+}
+
+.focus-date-btn:hover {
+	background: var(--background-modifier-hover);
+	color: var(--text-normal);
+}
+
+.focus-planning-date {
+	font-size: 11px;
+	color: var(--text-muted);
+	margin-left: 8px;
+}
+
 .focus-delete-btn {
 	background: none;
 	border: none;
