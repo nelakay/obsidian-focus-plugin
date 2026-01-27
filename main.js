@@ -182,17 +182,42 @@ var FocusView = class extends import_obsidian.ItemView {
     if (!this.data)
       return;
     for (const section of ["immediate", "thisWeek", "unscheduled"]) {
-      const task = this.data.tasks[section].find((t) => t.id === taskId);
-      if (task) {
-        task.completed = !task.completed;
-        await this.plugin.saveTaskData(this.data);
-        if (task.sourceFile) {
-          await this.plugin.syncTaskCompletionToSource(task);
-        }
-        await this.render();
+      const taskIndex = this.data.tasks[section].findIndex((t) => t.id === taskId);
+      if (taskIndex > -1) {
+        const task = this.data.tasks[section][taskIndex];
+        await this.archiveOrRestoreTask(task, section, this.data);
         return;
       }
     }
+  }
+  /**
+   * Archives a completed task to the monthly bucket, or restores it if uncompleting
+   */
+  async archiveOrRestoreTask(task, section, data) {
+    task.completed = !task.completed;
+    if (task.completed) {
+      const today = (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
+      task.completedAt = today;
+      const monthKey = today.substring(0, 7);
+      if (!data.completedTasks) {
+        data.completedTasks = {};
+      }
+      if (!data.completedTasks[monthKey]) {
+        data.completedTasks[monthKey] = [];
+      }
+      const index = data.tasks[section].findIndex((t) => t.id === task.id);
+      if (index > -1) {
+        data.tasks[section].splice(index, 1);
+      }
+      data.completedTasks[monthKey].push(task);
+    } else {
+      task.completedAt = void 0;
+    }
+    await this.plugin.saveTaskData(data);
+    if (task.sourceFile) {
+      await this.plugin.syncTaskCompletionToSource(task);
+    }
+    await this.render();
   }
   async moveTaskById(taskId, fromSection, toSection) {
     if (!this.data)
@@ -246,8 +271,110 @@ var FocusView = class extends import_obsidian.ItemView {
     });
     this.renderSection(container, "Immediate", "immediate", this.data.tasks.immediate, this.data);
     this.renderSection(container, "This week", "thisWeek", this.data.tasks.thisWeek, this.data);
+    this.renderCompletedSection(container, this.data);
     this.renderFooter(container);
     this.updateSelection();
+  }
+  renderCompletedSection(container, data) {
+    const completedTasks = data.completedTasks || {};
+    const monthKeys = Object.keys(completedTasks).sort().reverse();
+    const totalCompleted = monthKeys.reduce((sum, key) => {
+      var _a;
+      return sum + (((_a = completedTasks[key]) == null ? void 0 : _a.length) || 0);
+    }, 0);
+    if (totalCompleted === 0)
+      return;
+    const sectionEl = container.createEl("div", { cls: "focus-section focus-section-completed" });
+    const headerEl = sectionEl.createEl("div", { cls: "focus-section-header" });
+    headerEl.createEl("span", {
+      text: `Completed (${totalCompleted})`,
+      cls: "focus-section-title"
+    });
+    for (const monthKey of monthKeys) {
+      const tasks = completedTasks[monthKey];
+      if (!tasks || tasks.length === 0)
+        continue;
+      this.renderMonthGroup(sectionEl, monthKey, tasks, data);
+    }
+  }
+  renderMonthGroup(container, monthKey, tasks, data) {
+    const monthEl = container.createEl("div", { cls: "focus-month-group" });
+    const [year, month] = monthKey.split("-");
+    const monthNames = [
+      "January",
+      "February",
+      "March",
+      "April",
+      "May",
+      "June",
+      "July",
+      "August",
+      "September",
+      "October",
+      "November",
+      "December"
+    ];
+    const monthName = `${monthNames[parseInt(month, 10) - 1]} ${year}`;
+    const headerEl = monthEl.createEl("div", { cls: "focus-month-header" });
+    const toggleIcon = headerEl.createEl("span", { cls: "focus-month-toggle", text: "\u25B6" });
+    headerEl.createEl("span", { text: `${monthName} (${tasks.length})`, cls: "focus-month-title" });
+    const listEl = monthEl.createEl("div", { cls: "focus-month-tasks focus-month-collapsed" });
+    for (const task of tasks) {
+      this.renderCompletedTask(listEl, task, monthKey, data);
+    }
+    headerEl.addEventListener("click", () => {
+      const isCollapsed = listEl.hasClass("focus-month-collapsed");
+      if (isCollapsed) {
+        listEl.removeClass("focus-month-collapsed");
+        toggleIcon.setText("\u25BC");
+      } else {
+        listEl.addClass("focus-month-collapsed");
+        toggleIcon.setText("\u25B6");
+      }
+    });
+  }
+  renderCompletedTask(container, task, monthKey, data) {
+    const taskEl = container.createEl("div", {
+      cls: "focus-task focus-task-completed",
+      attr: { "data-task-id": task.id }
+    });
+    const checkbox = taskEl.createEl("input", {
+      type: "checkbox",
+      cls: "focus-task-checkbox"
+    });
+    checkbox.checked = true;
+    checkbox.addEventListener("change", async () => {
+      await this.restoreTaskFromArchive(task, monthKey, data);
+    });
+    const titleEl = taskEl.createEl("span", { cls: "focus-task-title" });
+    titleEl.createEl("span", { text: task.title });
+    if (task.completedAt) {
+      titleEl.createEl("span", {
+        text: ` (${task.completedAt})`,
+        cls: "focus-task-completed-date"
+      });
+    }
+  }
+  async restoreTaskFromArchive(task, monthKey, data) {
+    const tasks = data.completedTasks[monthKey];
+    if (tasks) {
+      const index = tasks.findIndex((t) => t.id === task.id);
+      if (index > -1) {
+        tasks.splice(index, 1);
+      }
+      if (tasks.length === 0) {
+        delete data.completedTasks[monthKey];
+      }
+    }
+    task.completed = false;
+    task.completedAt = void 0;
+    const targetSection = task.section || "unscheduled";
+    data.tasks[targetSection].push(task);
+    await this.plugin.saveTaskData(data);
+    if (task.sourceFile) {
+      await this.plugin.syncTaskCompletionToSource(task);
+    }
+    await this.render();
   }
   renderFooter(container) {
     const footer = container.createEl("div", { cls: "focus-footer" });
@@ -499,12 +626,7 @@ var FocusView = class extends import_obsidian.ItemView {
     });
   }
   async toggleTaskComplete(task, data) {
-    task.completed = !task.completed;
-    await this.plugin.saveTaskData(data);
-    if (task.sourceFile) {
-      await this.plugin.syncTaskCompletionToSource(task);
-    }
-    await this.render();
+    await this.archiveOrRestoreTask(task, task.section, data);
   }
   async moveTask(task, fromSection, toSection, data) {
     const fromIndex = data.tasks[fromSection].findIndex((t) => t.id === task.id);
@@ -1277,6 +1399,46 @@ var EndOfDayModal = class extends import_obsidian4.Modal {
 
 // src/SettingsTab.ts
 var import_obsidian5 = require("obsidian");
+var FilePathSuggest = class extends import_obsidian5.AbstractInputSuggest {
+  constructor(app, inputEl) {
+    super(app, inputEl);
+    this.textInputEl = inputEl;
+  }
+  getSuggestions(inputStr) {
+    const suggestions = [];
+    const lowerInput = inputStr.toLowerCase();
+    const files = this.app.vault.getMarkdownFiles();
+    for (const file of files) {
+      if (file.path.toLowerCase().includes(lowerInput)) {
+        suggestions.push(file.path);
+      }
+    }
+    const folders = this.app.vault.getAllLoadedFiles().filter((f) => f instanceof import_obsidian5.TFolder);
+    for (const folder of folders) {
+      if (folder.path && folder.path.toLowerCase().includes(lowerInput)) {
+        suggestions.push(folder.path + "/");
+      }
+    }
+    suggestions.sort((a, b) => {
+      const aStartsWith = a.toLowerCase().startsWith(lowerInput);
+      const bStartsWith = b.toLowerCase().startsWith(lowerInput);
+      if (aStartsWith && !bStartsWith)
+        return -1;
+      if (!aStartsWith && bStartsWith)
+        return 1;
+      return a.length - b.length;
+    });
+    return suggestions.slice(0, 10);
+  }
+  renderSuggestion(value, el) {
+    el.setText(value);
+  }
+  selectSuggestion(value) {
+    this.textInputEl.value = value;
+    this.textInputEl.trigger("input");
+    this.close();
+  }
+};
 var FocusSettingTab = class extends import_obsidian5.PluginSettingTab {
   constructor(app, plugin) {
     super(app, plugin);
@@ -1287,12 +1449,21 @@ var FocusSettingTab = class extends import_obsidian5.PluginSettingTab {
     containerEl.empty();
     this.renderHotkeysSection(containerEl);
     new import_obsidian5.Setting(containerEl).setName("Tasks").setHeading();
-    new import_obsidian5.Setting(containerEl).setName("Task file path").setDesc("The path to the markdown file that stores your tasks (relative to vault root)").addText(
-      (text) => text.setPlaceholder("focus-tasks.md").setValue(this.plugin.settings.taskFilePath).onChange(async (value) => {
-        this.plugin.settings.taskFilePath = value || "focus-tasks.md";
+    new import_obsidian5.Setting(containerEl).setName("Task file path").setDesc("The path to the markdown file that stores your tasks. Select an existing file or type a new path.").addText((text) => {
+      text.setPlaceholder("focus-tasks.md").setValue(this.plugin.settings.taskFilePath).onChange(async (value) => {
+        let newPath = value || "focus-tasks.md";
+        if (!newPath.endsWith(".md") && !newPath.endsWith("/")) {
+          newPath = newPath + ".md";
+        }
+        if (newPath.endsWith("/")) {
+          newPath = newPath + "focus-tasks.md";
+        }
+        this.plugin.settings.taskFilePath = newPath;
         await this.plugin.saveSettings();
-      })
-    );
+        this.plugin.refreshFocusView();
+      });
+      new FilePathSuggest(this.app, text.inputEl);
+    });
     new import_obsidian5.Setting(containerEl).setName("Maximum immediate tasks").setDesc("Maximum number of tasks allowed in the immediate section (3-5 recommended)").addSlider(
       (slider) => slider.setLimits(1, 7, 1).setValue(this.plugin.settings.maxImmediateTasks).setDynamicTooltip().onChange(async (value) => {
         this.plugin.settings.maxImmediateTasks = value;
@@ -1471,10 +1642,16 @@ function parseTaskLine(line, section) {
   let url;
   let doDate;
   let doTime;
+  let completedAt;
   const urlMatch = title.match(/\s*🔗\s*(https?:\/\/\S+)\s*$/);
   if (urlMatch) {
     url = urlMatch[1];
     title = title.replace(urlMatch[0], "").trim();
+  }
+  const completedMatch = title.match(/\s*✅\s*(\d{4}-\d{2}-\d{2})\s*$/);
+  if (completedMatch) {
+    completedAt = completedMatch[1];
+    title = title.replace(completedMatch[0], "").trim();
   }
   const timeMatch = title.match(/\s*⏰\s*(\d{1,2}:\d{2})\s*$/);
   if (timeMatch) {
@@ -1490,6 +1667,7 @@ function parseTaskLine(line, section) {
     id: generateId(),
     title,
     completed,
+    completedAt,
     section,
     url,
     doDate,
@@ -1522,6 +1700,29 @@ function parseFrontmatter(content) {
   }
   return { weekOf, goals, bodyStart };
 }
+function parseMonthHeader(line) {
+  const match = line.match(/^###\s+(\w+)\s+(\d{4})$/);
+  if (!match)
+    return null;
+  const monthNames = {
+    january: "01",
+    february: "02",
+    march: "03",
+    april: "04",
+    may: "05",
+    june: "06",
+    july: "07",
+    august: "08",
+    september: "09",
+    october: "10",
+    november: "11",
+    december: "12"
+  };
+  const monthNum = monthNames[match[1].toLowerCase()];
+  if (!monthNum)
+    return null;
+  return `${match[2]}-${monthNum}`;
+}
 function parseTaskFile(content) {
   const { weekOf, goals, bodyStart } = parseFrontmatter(content);
   const body = content.slice(bodyStart);
@@ -1530,39 +1731,91 @@ function parseTaskFile(content) {
     thisWeek: [],
     unscheduled: []
   };
+  const completedTasks = {};
   let currentSection = null;
+  let inCompletedSection = false;
+  let currentMonth = null;
   const lines = body.split("\n");
   for (const line of lines) {
     const trimmedLine = line.trim();
     if (trimmedLine.toLowerCase() === "## immediate") {
       currentSection = "immediate";
+      inCompletedSection = false;
+      currentMonth = null;
       continue;
     } else if (trimmedLine.toLowerCase() === "## this week") {
       currentSection = "thisWeek";
+      inCompletedSection = false;
+      currentMonth = null;
       continue;
     } else if (trimmedLine.toLowerCase() === "## unscheduled") {
       currentSection = "unscheduled";
+      inCompletedSection = false;
+      currentMonth = null;
+      continue;
+    } else if (trimmedLine.toLowerCase() === "## completed") {
+      currentSection = null;
+      inCompletedSection = true;
+      currentMonth = null;
       continue;
     }
-    if (currentSection && trimmedLine.startsWith("-")) {
-      const task = parseTaskLine(trimmedLine, currentSection);
-      if (task) {
-        tasks[currentSection].push(task);
+    if (inCompletedSection && trimmedLine.startsWith("###")) {
+      const monthKey = parseMonthHeader(trimmedLine);
+      if (monthKey) {
+        currentMonth = monthKey;
+        if (!completedTasks[currentMonth]) {
+          completedTasks[currentMonth] = [];
+        }
+      }
+      continue;
+    }
+    if (trimmedLine.startsWith("-")) {
+      if (inCompletedSection && currentMonth) {
+        const task = parseTaskLine(trimmedLine, "unscheduled");
+        if (task) {
+          task.completed = true;
+          completedTasks[currentMonth].push(task);
+        }
+      } else if (currentSection) {
+        const task = parseTaskLine(trimmedLine, currentSection);
+        if (task) {
+          tasks[currentSection].push(task);
+        }
       }
     }
   }
   return {
     weekOf,
     goals,
-    tasks
+    tasks,
+    completedTasks
   };
 }
-function serializeTask(task) {
+function serializeTask(task, includeCompletedAt = false) {
   const checkbox = task.completed ? "[x]" : "[ ]";
   const datePart = task.doDate ? ` \u{1F4C5} ${task.doDate}` : "";
   const timePart = task.doTime ? ` \u23F0 ${task.doTime}` : "";
+  const completedPart = includeCompletedAt && task.completedAt ? ` \u2705 ${task.completedAt}` : "";
   const urlPart = task.url ? ` \u{1F517} ${task.url}` : "";
-  return `- ${checkbox} ${task.title}${datePart}${timePart}${urlPart}`;
+  return `- ${checkbox} ${task.title}${datePart}${timePart}${completedPart}${urlPart}`;
+}
+function formatMonthHeader(monthKey) {
+  const [year, month] = monthKey.split("-");
+  const monthNames = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December"
+  ];
+  return `${monthNames[parseInt(month, 10) - 1]} ${year}`;
 }
 function serializeTaskFile(data) {
   const lines = [];
@@ -1593,6 +1846,22 @@ function serializeTaskFile(data) {
     lines.push(serializeTask(task));
   }
   lines.push("");
+  const completedTasks = data.completedTasks || {};
+  const monthKeys = Object.keys(completedTasks).sort().reverse();
+  if (monthKeys.length > 0) {
+    lines.push("## Completed");
+    lines.push("");
+    for (const monthKey of monthKeys) {
+      const tasks = completedTasks[monthKey];
+      if (tasks && tasks.length > 0) {
+        lines.push(`### ${formatMonthHeader(monthKey)}`);
+        for (const task of tasks) {
+          lines.push(serializeTask(task, true));
+        }
+        lines.push("");
+      }
+    }
+  }
   return lines.join("\n");
 }
 function createDefaultTaskFile() {
@@ -1604,7 +1873,8 @@ function createDefaultTaskFile() {
       immediate: [],
       thisWeek: [],
       unscheduled: []
-    }
+    },
+    completedTasks: {}
   });
 }
 
@@ -1822,7 +2092,8 @@ var FocusPlugin = class extends import_obsidian6.Plugin {
         immediate: [],
         thisWeek: [],
         unscheduled: []
-      }
+      },
+      completedTasks: {}
     };
   }
   async saveTaskData(data) {

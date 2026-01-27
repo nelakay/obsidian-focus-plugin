@@ -289,6 +289,7 @@ export default class FocusPlugin extends Plugin {
 				thisWeek: [],
 				unscheduled: [],
 			},
+			completedTasks: {},
 		};
 	}
 

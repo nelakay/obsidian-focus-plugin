@@ -142,18 +142,59 @@ export class FocusView extends ItemView {
 		if (!this.data) return;
 
 		for (const section of ['immediate', 'thisWeek', 'unscheduled'] as TaskSection[]) {
-			const task = this.data.tasks[section].find(t => t.id === taskId);
-			if (task) {
-				task.completed = !task.completed;
-				await this.plugin.saveTaskData(this.data);
-				// Sync completion to source file if task came from vault
-				if (task.sourceFile) {
-					await this.plugin.syncTaskCompletionToSource(task);
-				}
-				await this.render();
+			const taskIndex = this.data.tasks[section].findIndex(t => t.id === taskId);
+			if (taskIndex > -1) {
+				const task = this.data.tasks[section][taskIndex];
+				await this.archiveOrRestoreTask(task, section, this.data);
 				return;
 			}
 		}
+	}
+
+	/**
+	 * Archives a completed task to the monthly bucket, or restores it if uncompleting
+	 */
+	private async archiveOrRestoreTask(task: Task, section: TaskSection, data: FocusData): Promise<void> {
+		task.completed = !task.completed;
+
+		if (task.completed) {
+			// Task is being completed - archive it
+			const today = new Date().toISOString().split('T')[0];
+			task.completedAt = today;
+
+			// Get month key (e.g., "2026-01")
+			const monthKey = today.substring(0, 7);
+
+			// Initialize completedTasks if needed
+			if (!data.completedTasks) {
+				data.completedTasks = {};
+			}
+			if (!data.completedTasks[monthKey]) {
+				data.completedTasks[monthKey] = [];
+			}
+
+			// Remove from active section
+			const index = data.tasks[section].findIndex(t => t.id === task.id);
+			if (index > -1) {
+				data.tasks[section].splice(index, 1);
+			}
+
+			// Add to completed archive
+			data.completedTasks[monthKey].push(task);
+		} else {
+			// Task is being uncompleted - this shouldn't happen from active list
+			// but handle it gracefully
+			task.completedAt = undefined;
+		}
+
+		await this.plugin.saveTaskData(data);
+
+		// Sync completion to source file if task came from vault
+		if (task.sourceFile) {
+			await this.plugin.syncTaskCompletionToSource(task);
+		}
+
+		await this.render();
 	}
 
 	private async moveTaskById(taskId: string, fromSection: TaskSection, toSection: TaskSection): Promise<void> {
@@ -231,11 +272,134 @@ export class FocusView extends ItemView {
 		// This week section
 		this.renderSection(container, 'This week', 'thisWeek', this.data.tasks.thisWeek, this.data);
 
+		// Completed section with monthly archives
+		this.renderCompletedSection(container, this.data);
+
 		// Footer with link to task file
 		this.renderFooter(container);
 
 		// Restore selection if any
 		this.updateSelection();
+	}
+
+	private renderCompletedSection(container: Element, data: FocusData): void {
+		const completedTasks = data.completedTasks || {};
+		const monthKeys = Object.keys(completedTasks).sort().reverse(); // Most recent first
+
+		// Count total completed tasks
+		const totalCompleted = monthKeys.reduce((sum, key) => sum + (completedTasks[key]?.length || 0), 0);
+
+		if (totalCompleted === 0) return;
+
+		const sectionEl = container.createEl('div', { cls: 'focus-section focus-section-completed' });
+
+		// Section header
+		const headerEl = sectionEl.createEl('div', { cls: 'focus-section-header' });
+		headerEl.createEl('span', {
+			text: `Completed (${totalCompleted})`,
+			cls: 'focus-section-title',
+		});
+
+		// Render each month as a collapsible group
+		for (const monthKey of monthKeys) {
+			const tasks = completedTasks[monthKey];
+			if (!tasks || tasks.length === 0) continue;
+
+			this.renderMonthGroup(sectionEl, monthKey, tasks, data);
+		}
+	}
+
+	private renderMonthGroup(container: Element, monthKey: string, tasks: Task[], data: FocusData): void {
+		const monthEl = container.createEl('div', { cls: 'focus-month-group' });
+
+		// Format month header (e.g., "2026-01" -> "January 2026")
+		const [year, month] = monthKey.split('-');
+		const monthNames = [
+			'January', 'February', 'March', 'April', 'May', 'June',
+			'July', 'August', 'September', 'October', 'November', 'December',
+		];
+		const monthName = `${monthNames[parseInt(month, 10) - 1]} ${year}`;
+
+		// Collapsible header
+		const headerEl = monthEl.createEl('div', { cls: 'focus-month-header' });
+		const toggleIcon = headerEl.createEl('span', { cls: 'focus-month-toggle', text: '▶' });
+		headerEl.createEl('span', { text: `${monthName} (${tasks.length})`, cls: 'focus-month-title' });
+
+		// Task list (hidden by default)
+		const listEl = monthEl.createEl('div', { cls: 'focus-month-tasks focus-month-collapsed' });
+
+		for (const task of tasks) {
+			this.renderCompletedTask(listEl, task, monthKey, data);
+		}
+
+		// Toggle visibility on click
+		headerEl.addEventListener('click', () => {
+			const isCollapsed = listEl.hasClass('focus-month-collapsed');
+			if (isCollapsed) {
+				listEl.removeClass('focus-month-collapsed');
+				toggleIcon.setText('▼');
+			} else {
+				listEl.addClass('focus-month-collapsed');
+				toggleIcon.setText('▶');
+			}
+		});
+	}
+
+	private renderCompletedTask(container: Element, task: Task, monthKey: string, data: FocusData): void {
+		const taskEl = container.createEl('div', {
+			cls: 'focus-task focus-task-completed',
+			attr: { 'data-task-id': task.id },
+		});
+
+		// Checkbox (allows uncompleting)
+		const checkbox = taskEl.createEl('input', {
+			type: 'checkbox',
+			cls: 'focus-task-checkbox',
+		});
+		checkbox.checked = true;
+		checkbox.addEventListener('change', async () => {
+			await this.restoreTaskFromArchive(task, monthKey, data);
+		});
+
+		// Task title with completion date
+		const titleEl = taskEl.createEl('span', { cls: 'focus-task-title' });
+		titleEl.createEl('span', { text: task.title });
+		if (task.completedAt) {
+			titleEl.createEl('span', {
+				text: ` (${task.completedAt})`,
+				cls: 'focus-task-completed-date',
+			});
+		}
+	}
+
+	private async restoreTaskFromArchive(task: Task, monthKey: string, data: FocusData): Promise<void> {
+		// Remove from completed archive
+		const tasks = data.completedTasks[monthKey];
+		if (tasks) {
+			const index = tasks.findIndex(t => t.id === task.id);
+			if (index > -1) {
+				tasks.splice(index, 1);
+			}
+			// Clean up empty month
+			if (tasks.length === 0) {
+				delete data.completedTasks[monthKey];
+			}
+		}
+
+		// Restore to original section (or default to unscheduled)
+		task.completed = false;
+		task.completedAt = undefined;
+		const targetSection = task.section || 'unscheduled';
+		data.tasks[targetSection].push(task);
+
+		await this.plugin.saveTaskData(data);
+
+		// Sync to source file if needed
+		if (task.sourceFile) {
+			await this.plugin.syncTaskCompletionToSource(task);
+		}
+
+		await this.render();
 	}
 
 	private renderFooter(container: Element): void {
@@ -578,13 +742,7 @@ export class FocusView extends ItemView {
 	}
 
 	private async toggleTaskComplete(task: Task, data: FocusData): Promise<void> {
-		task.completed = !task.completed;
-		await this.plugin.saveTaskData(data);
-		// Sync completion to source file if task came from vault
-		if (task.sourceFile) {
-			await this.plugin.syncTaskCompletionToSource(task);
-		}
-		await this.render();
+		await this.archiveOrRestoreTask(task, task.section, data);
 	}
 
 	private async moveTask(

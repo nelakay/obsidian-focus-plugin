@@ -2,6 +2,7 @@ export interface Task {
 	id: string;
 	title: string;
 	completed: boolean;
+	completedAt?: string; // ISO date when completed: "2026-01-27"
 	section: TaskSection;
 	goalId?: string; // Optional link to a weekly goal
 	sourceFile?: string; // For vault-synced tasks, tracks original file
@@ -38,6 +39,8 @@ export interface FocusData {
 		thisWeek: Task[];
 		unscheduled: Task[];
 	};
+	// Completed tasks archived by month (key: "2026-01", value: tasks)
+	completedTasks: Record<string, Task[]>;
 }
 
 export type VaultSyncMode = 'off' | 'all' | 'tag';

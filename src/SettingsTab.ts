@@ -1,6 +1,61 @@
-import { App, PluginSettingTab, Setting, Hotkey } from 'obsidian';
+import { App, PluginSettingTab, Setting, Hotkey, AbstractInputSuggest, TFolder } from 'obsidian';
 import { DAY_NAMES, DayOfWeek, COMMAND_IDS, VaultSyncMode } from './types';
 import type FocusPlugin from './main';
+
+/**
+ * File path suggester that shows existing files and folders as you type
+ */
+class FilePathSuggest extends AbstractInputSuggest<string> {
+	private textInputEl: HTMLInputElement;
+
+	constructor(app: App, inputEl: HTMLInputElement) {
+		super(app, inputEl);
+		this.textInputEl = inputEl;
+	}
+
+	getSuggestions(inputStr: string): string[] {
+		const suggestions: string[] = [];
+		const lowerInput = inputStr.toLowerCase();
+
+		// Get all markdown files
+		const files = this.app.vault.getMarkdownFiles();
+		for (const file of files) {
+			if (file.path.toLowerCase().includes(lowerInput)) {
+				suggestions.push(file.path);
+			}
+		}
+
+		// Also suggest folders (user might want to create a new file in a folder)
+		const folders = this.app.vault.getAllLoadedFiles().filter(f => f instanceof TFolder) as TFolder[];
+		for (const folder of folders) {
+			if (folder.path && folder.path.toLowerCase().includes(lowerInput)) {
+				// Suggest folder path with a trailing slash to indicate it's a folder
+				suggestions.push(folder.path + '/');
+			}
+		}
+
+		// Sort suggestions - exact matches first, then by length
+		suggestions.sort((a, b) => {
+			const aStartsWith = a.toLowerCase().startsWith(lowerInput);
+			const bStartsWith = b.toLowerCase().startsWith(lowerInput);
+			if (aStartsWith && !bStartsWith) return -1;
+			if (!aStartsWith && bStartsWith) return 1;
+			return a.length - b.length;
+		});
+
+		return suggestions.slice(0, 10); // Limit to 10 suggestions
+	}
+
+	renderSuggestion(value: string, el: HTMLElement): void {
+		el.setText(value);
+	}
+
+	selectSuggestion(value: string): void {
+		this.textInputEl.value = value;
+		this.textInputEl.trigger('input');
+		this.close();
+	}
+}
 
 export class FocusSettingTab extends PluginSettingTab {
 	plugin: FocusPlugin;
@@ -22,16 +77,30 @@ export class FocusSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName('Task file path')
-			.setDesc('The path to the markdown file that stores your tasks (relative to vault root)')
-			.addText((text) =>
+			.setDesc('The path to the markdown file that stores your tasks. Select an existing file or type a new path.')
+			.addText((text) => {
 				text
 					.setPlaceholder('focus-tasks.md')
 					.setValue(this.plugin.settings.taskFilePath)
 					.onChange(async (value) => {
-						this.plugin.settings.taskFilePath = value || 'focus-tasks.md';
+						let newPath = value || 'focus-tasks.md';
+						// Ensure .md extension (unless it's just a folder path ending with /)
+						if (!newPath.endsWith('.md') && !newPath.endsWith('/')) {
+							newPath = newPath + '.md';
+						}
+						// If it ends with /, append a default filename
+						if (newPath.endsWith('/')) {
+							newPath = newPath + 'focus-tasks.md';
+						}
+
+						this.plugin.settings.taskFilePath = newPath;
 						await this.plugin.saveSettings();
-					})
-			);
+						this.plugin.refreshFocusView();
+					});
+
+				// Add file path suggestions
+				new FilePathSuggest(this.app, text.inputEl);
+			});
 
 		new Setting(containerEl)
 			.setName('Maximum immediate tasks')

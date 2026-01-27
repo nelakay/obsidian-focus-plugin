@@ -13,6 +13,7 @@ function generateId(): string {
  * Optional URL: "- [ ] Task title 🔗 https://example.com"
  * Optional do date: "- [ ] Task title 📅 2026-01-27"
  * Optional do time: "- [ ] Task title 📅 2026-01-27 ⏰ 14:30"
+ * Optional completed date: "- [x] Task title ✅ 2026-01-27"
  */
 function parseTaskLine(line: string, section: TaskSection): Task | null {
 	const match = line.match(/^-\s*\[([ xX])\]\s*(.+)$/);
@@ -23,12 +24,20 @@ function parseTaskLine(line: string, section: TaskSection): Task | null {
 	let url: string | undefined;
 	let doDate: string | undefined;
 	let doTime: string | undefined;
+	let completedAt: string | undefined;
 
 	// Extract URL if present (format: 🔗 https://...)
 	const urlMatch = title.match(/\s*🔗\s*(https?:\/\/\S+)\s*$/);
 	if (urlMatch) {
 		url = urlMatch[1];
 		title = title.replace(urlMatch[0], '').trim();
+	}
+
+	// Extract completed date if present (format: ✅ YYYY-MM-DD)
+	const completedMatch = title.match(/\s*✅\s*(\d{4}-\d{2}-\d{2})\s*$/);
+	if (completedMatch) {
+		completedAt = completedMatch[1];
+		title = title.replace(completedMatch[0], '').trim();
 	}
 
 	// Extract do time if present (format: ⏰ HH:MM)
@@ -49,6 +58,7 @@ function parseTaskLine(line: string, section: TaskSection): Task | null {
 		id: generateId(),
 		title,
 		completed,
+		completedAt,
 		section,
 		url,
 		doDate,
@@ -94,6 +104,25 @@ function parseFrontmatter(content: string): { weekOf: string; goals: WeeklyGoal[
 }
 
 /**
+ * Parses a month header like "### January 2026" and returns the month key "2026-01"
+ */
+function parseMonthHeader(line: string): string | null {
+	const match = line.match(/^###\s+(\w+)\s+(\d{4})$/);
+	if (!match) return null;
+
+	const monthNames: Record<string, string> = {
+		january: '01', february: '02', march: '03', april: '04',
+		may: '05', june: '06', july: '07', august: '08',
+		september: '09', october: '10', november: '11', december: '12',
+	};
+
+	const monthNum = monthNames[match[1].toLowerCase()];
+	if (!monthNum) return null;
+
+	return `${match[2]}-${monthNum}`;
+}
+
+/**
  * Parses the entire task file content into FocusData
  */
 export function parseTaskFile(content: string): FocusData {
@@ -106,7 +135,11 @@ export function parseTaskFile(content: string): FocusData {
 		unscheduled: [],
 	};
 
+	const completedTasks: Record<string, Task[]> = {};
+
 	let currentSection: TaskSection | null = null;
+	let inCompletedSection = false;
+	let currentMonth: string | null = null;
 
 	const lines = body.split('\n');
 	for (const line of lines) {
@@ -115,20 +148,52 @@ export function parseTaskFile(content: string): FocusData {
 		// Check for section headers
 		if (trimmedLine.toLowerCase() === '## immediate') {
 			currentSection = 'immediate';
+			inCompletedSection = false;
+			currentMonth = null;
 			continue;
 		} else if (trimmedLine.toLowerCase() === '## this week') {
 			currentSection = 'thisWeek';
+			inCompletedSection = false;
+			currentMonth = null;
 			continue;
 		} else if (trimmedLine.toLowerCase() === '## unscheduled') {
 			currentSection = 'unscheduled';
+			inCompletedSection = false;
+			currentMonth = null;
+			continue;
+		} else if (trimmedLine.toLowerCase() === '## completed') {
+			currentSection = null;
+			inCompletedSection = true;
+			currentMonth = null;
+			continue;
+		}
+
+		// Check for month headers within completed section
+		if (inCompletedSection && trimmedLine.startsWith('###')) {
+			const monthKey = parseMonthHeader(trimmedLine);
+			if (monthKey) {
+				currentMonth = monthKey;
+				if (!completedTasks[currentMonth]) {
+					completedTasks[currentMonth] = [];
+				}
+			}
 			continue;
 		}
 
 		// Parse task lines
-		if (currentSection && trimmedLine.startsWith('-')) {
-			const task = parseTaskLine(trimmedLine, currentSection);
-			if (task) {
-				tasks[currentSection].push(task);
+		if (trimmedLine.startsWith('-')) {
+			if (inCompletedSection && currentMonth) {
+				// Parse as completed task (section doesn't matter for archived tasks)
+				const task = parseTaskLine(trimmedLine, 'unscheduled');
+				if (task) {
+					task.completed = true; // Ensure it's marked completed
+					completedTasks[currentMonth].push(task);
+				}
+			} else if (currentSection) {
+				const task = parseTaskLine(trimmedLine, currentSection);
+				if (task) {
+					tasks[currentSection].push(task);
+				}
 			}
 		}
 	}
@@ -137,18 +202,32 @@ export function parseTaskFile(content: string): FocusData {
 		weekOf,
 		goals,
 		tasks,
+		completedTasks,
 	};
 }
 
 /**
  * Serializes a Task to markdown format
  */
-function serializeTask(task: Task): string {
+function serializeTask(task: Task, includeCompletedAt = false): string {
 	const checkbox = task.completed ? '[x]' : '[ ]';
 	const datePart = task.doDate ? ` 📅 ${task.doDate}` : '';
 	const timePart = task.doTime ? ` ⏰ ${task.doTime}` : '';
+	const completedPart = includeCompletedAt && task.completedAt ? ` ✅ ${task.completedAt}` : '';
 	const urlPart = task.url ? ` 🔗 ${task.url}` : '';
-	return `- ${checkbox} ${task.title}${datePart}${timePart}${urlPart}`;
+	return `- ${checkbox} ${task.title}${datePart}${timePart}${completedPart}${urlPart}`;
+}
+
+/**
+ * Formats a month key like "2026-01" to "January 2026"
+ */
+function formatMonthHeader(monthKey: string): string {
+	const [year, month] = monthKey.split('-');
+	const monthNames = [
+		'January', 'February', 'March', 'April', 'May', 'June',
+		'July', 'August', 'September', 'October', 'November', 'December',
+	];
+	return `${monthNames[parseInt(month, 10) - 1]} ${year}`;
 }
 
 /**
@@ -192,6 +271,26 @@ export function serializeTaskFile(data: FocusData): string {
 	}
 	lines.push('');
 
+	// Completed section (archived by month)
+	const completedTasks = data.completedTasks || {};
+	const monthKeys = Object.keys(completedTasks).sort().reverse(); // Most recent first
+
+	if (monthKeys.length > 0) {
+		lines.push('## Completed');
+		lines.push('');
+
+		for (const monthKey of monthKeys) {
+			const tasks = completedTasks[monthKey];
+			if (tasks && tasks.length > 0) {
+				lines.push(`### ${formatMonthHeader(monthKey)}`);
+				for (const task of tasks) {
+					lines.push(serializeTask(task, true));
+				}
+				lines.push('');
+			}
+		}
+	}
+
 	return lines.join('\n');
 }
 
@@ -208,6 +307,7 @@ export function createDefaultTaskFile(): string {
 			thisWeek: [],
 			unscheduled: [],
 		},
+		completedTasks: {},
 	});
 }
 

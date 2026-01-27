@@ -678,3 +678,84 @@
 	color: var(--text-normal);
 	text-decoration: underline;
 }
+
+/* ===== Completed Section (Monthly Archives) ===== */
+
+.focus-section-completed {
+	margin-top: 24px;
+	padding-top: 16px;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.focus-section-completed .focus-section-title {
+	color: var(--text-faint);
+}
+
+/* Month Group */
+.focus-month-group {
+	margin-bottom: 8px;
+}
+
+.focus-month-header {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 12px;
+	cursor: pointer;
+	border-radius: 6px;
+	transition: background 0.15s ease;
+}
+
+.focus-month-header:hover {
+	background: var(--background-secondary);
+}
+
+.focus-month-toggle {
+	font-size: 10px;
+	color: var(--text-faint);
+	width: 12px;
+	text-align: center;
+}
+
+.focus-month-title {
+	font-size: 13px;
+	color: var(--text-muted);
+	font-weight: 500;
+}
+
+/* Month Tasks List */
+.focus-month-tasks {
+	padding-left: 20px;
+	overflow: hidden;
+	transition: max-height 0.2s ease;
+}
+
+.focus-month-tasks.focus-month-collapsed {
+	display: none;
+}
+
+/* Completed Task in Archive */
+.focus-section-completed .focus-task {
+	padding: 6px 10px !important;
+	margin-bottom: 4px !important;
+	background: var(--background-primary-alt) !important;
+	box-shadow: none !important;
+}
+
+.focus-section-completed .focus-task:hover {
+	background: var(--background-secondary) !important;
+}
+
+.focus-task-checkbox {
+	width: 16px !important;
+	height: 16px !important;
+	min-width: 16px !important;
+	cursor: pointer !important;
+	accent-color: var(--interactive-accent);
+}
+
+.focus-task-completed-date {
+	font-size: 11px;
+	color: var(--text-faint);
+	margin-left: 4px;
+}
