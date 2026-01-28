@@ -151,17 +151,13 @@ Tasks can contain `[[wiki-links]]` to your notes. Click to navigate directly to 
 
 ## Installation
 
-### From Obsidian Community Plugins (Recommended)
-1. Open Obsidian Settings
-2. Go to Community Plugins and disable Safe Mode
-3. Click Browse and search for "Focus"
-4. Install and enable the plugin
-
 ### Manual Installation
-1. Download the latest release from GitHub
+1. Download the latest release from [GitHub Releases](https://github.com/nelakay/obsidian-focus-plugin/releases)
 2. Extract to your vault's `.obsidian/plugins/focus-plugin/` folder
 3. Reload Obsidian
 4. Enable "Focus" in Community Plugins settings
+
+> **Note**: Community plugin listing coming soon!
 
 ## Usage
 
