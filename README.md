@@ -23,7 +23,12 @@ Focus is built on three principles:
 
 ## Features
 
+<table>
+<tr>
+<td width="50%">
+
 ### Focus View (Sidebar)
+
 Your daily command center. Shows only:
 - **Daily habits**: Recurring habits that reset each morning
 - **Immediate tasks**: The 3-5 things you're actively working on
@@ -31,24 +36,49 @@ Your daily command center. Shows only:
 
 Everything else is hidden. Out of sight, out of mind.
 
-![Focus View](screenshots/habits,%20immediate%20and%20this%20week.png)
+</td>
+<td width="50%">
+<img src="screenshots/habits,%20immediate%20and%20this%20week.png" width="100%">
+</td>
+</tr>
+</table>
 
 ### Daily Habits
 Track up to 3 recurring habits that reset each morning. Add them to your task file under `## Daily Habits`. When completed, they disappear until the next day.
 
+<table>
+<tr>
+<td width="50%">
+
 ### Planning View (Modal)
+
 A weekly ritual for intentional task management:
 - Review your progress
 - Surface tasks from your backlog
 - Schedule tasks for the upcoming week
 - Clear completed tasks
 
-![Planning View](screenshots/planning.png)
+</td>
+<td width="50%">
+<img src="screenshots/planning.png" width="100%">
+</td>
+</tr>
+</table>
+
+<table>
+<tr>
+<td width="50%">
 
 ### Quick Add
+
 Add tasks on the fly without breaking your flow. New tasks go to your weekly list by default—they won't clutter your immediate focus unless you explicitly promote them.
 
-![Quick Add](screenshots/add_tasl.png)
+</td>
+<td width="50%">
+<img src="screenshots/add_tasl.png" width="100%">
+</td>
+</tr>
+</table>
 
 ### Drag & Drop
 Easily move tasks between Immediate and This Week sections. Promote when you're ready to focus; demote when priorities shift.
@@ -60,13 +90,23 @@ Right-click any task to:
 - Deprioritize (send back to backlog)
 - Delete
 
+<table>
+<tr>
+<td width="50%">
+
 ### Vault Sync (Optional)
+
 Pull tasks from your existing notes into Focus:
 - Sync all tasks from your vault, or
 - Only sync tasks with a specific tag (e.g., `#focus`)
 - Two-way sync: completing a task in Focus marks it complete in the source file
 
-![Vault Sync](screenshots/vault_task_sync.png)
+</td>
+<td width="50%">
+<img src="screenshots/vault_task_sync.png" width="100%">
+</td>
+</tr>
+</table>
 
 ### Keyboard Navigation
 Navigate and manage tasks without touching your mouse:
@@ -76,15 +116,35 @@ Navigate and manage tasks without touching your mouse:
 - `w`: Move to This Week
 - `u`: Deprioritize to backlog
 
+<table>
+<tr>
+<td width="50%">
+
 ### Backlog & Completed Tasks
+
 Access your full backlog through the Planning View. Completed tasks are archived by month for easy reference.
 
-![Backlog and Completed](screenshots/Backlog%20and%20completed.png)
+</td>
+<td width="50%">
+<img src="screenshots/Backlog%20and%20completed.png" width="100%">
+</td>
+</tr>
+</table>
+
+<table>
+<tr>
+<td width="50%">
 
 ### Task Limits
+
 Focus enforces a hard limit on immediate tasks. If you try to add more than allowed, you'll need to make room first.
 
-![Too Many Tasks](screenshots/too_many_tasks.png)
+</td>
+<td width="50%">
+<img src="screenshots/too_many_tasks.png" width="100%">
+</td>
+</tr>
+</table>
 
 ### Wiki-Link Support
 Tasks can contain `[[wiki-links]]` to your notes. Click to navigate directly to the linked note.
@@ -140,13 +200,21 @@ Tasks can contain `[[wiki-links]]` to your notes. Click to navigate directly to 
 | Rollover behavior | What happens to incomplete tasks | Immediate → This Week → Backlog |
 | Periodic notes | Daily/weekly note integration | Configurable |
 
-![Task File Path Setting](screenshots/task_list_path.png)
+<details>
+<summary>Settings Screenshots</summary>
 
-![Reminders Settings](screenshots/reminders.png)
+<table>
+<tr>
+<td width="50%"><img src="screenshots/task_list_path.png" width="100%"></td>
+<td width="50%"><img src="screenshots/reminders.png" width="100%"></td>
+</tr>
+<tr>
+<td width="50%"><img src="screenshots/weekyl_rollover.png" width="100%"></td>
+<td width="50%"><img src="screenshots/periodic_notes_integration.png" width="100%"></td>
+</tr>
+</table>
 
-![Weekly Rollover Settings](screenshots/weekyl_rollover.png)
-
-![Periodic Notes Integration](screenshots/periodic_notes_integration.png)
+</details>
 
 ## Keyboard Shortcuts
 
