@@ -1,5 +1,5 @@
 import { ItemView, WorkspaceLeaf, Menu, Notice, TFile } from 'obsidian';
-import { FOCUS_VIEW_TYPE, Task, TaskSection, FocusData } from './types';
+import { FOCUS_VIEW_TYPE, Task, TaskSection, FocusData, DailyHabit } from './types';
 import type FocusPlugin from './main';
 
 export class FocusView extends ItemView {
@@ -266,7 +266,10 @@ export class FocusView extends ItemView {
 			this.plugin.openAddTaskModal(true); // Default to This Week when triggered from Focus view
 		});
 
-		// Immediate section
+		// Check if habits need daily reset
+		await this.checkHabitReset(this.data);
+
+		// Immediate section (includes habits at the top)
 		this.renderSection(container, 'Immediate', 'immediate', this.data.tasks.immediate, this.data);
 
 		// This week section
@@ -421,6 +424,55 @@ export class FocusView extends ItemView {
 		});
 	}
 
+	/**
+	 * Check if habits need to be reset for a new day
+	 */
+	private async checkHabitReset(data: FocusData): Promise<void> {
+		const today = new Date().toISOString().split('T')[0];
+
+		if (data.habitResetDate !== today) {
+			// New day - reset all habits
+			for (const habit of data.habits) {
+				habit.completedToday = false;
+			}
+			data.habitResetDate = today;
+			await this.plugin.saveTaskData(data);
+		}
+	}
+
+	/**
+	 * Render a habit styled like a task (appears in Immediate section)
+	 */
+	private renderHabitAsTask(container: Element, habit: DailyHabit, data: FocusData): void {
+		const habitEl = container.createEl('div', {
+			cls: 'focus-task focus-task-habit',
+			attr: { 'data-habit-id': habit.id },
+		});
+
+		// Checkbox (styled like task checkbox)
+		const checkbox = habitEl.createEl('input', {
+			type: 'checkbox',
+			cls: 'focus-checkbox',
+		});
+		checkbox.checked = habit.completedToday;
+		checkbox.addEventListener('change', async () => {
+			habit.completedToday = checkbox.checked;
+			await this.plugin.saveTaskData(data);
+			await this.render(); // Re-render to hide completed habit
+		});
+
+		// Habit title
+		const titleEl = habitEl.createEl('span', { cls: 'focus-task-title' });
+		titleEl.setText(habit.title);
+
+		// Daily habit indicator
+		habitEl.createEl('span', {
+			cls: 'focus-habit-indicator',
+			text: '🔄',
+			attr: { title: 'Daily habit - resets each morning' },
+		});
+	}
+
 	private renderSection(
 		container: Element,
 		title: string,
@@ -447,6 +499,14 @@ export class FocusView extends ItemView {
 
 		// Make section a drop target
 		this.setupDropZone(listEl, section, data);
+
+		// Render habits at top of Immediate section (look like tasks)
+		if (section === 'immediate') {
+			const incompleteHabits = (data.habits || []).filter(h => !h.completedToday);
+			for (const habit of incompleteHabits) {
+				this.renderHabitAsTask(listEl, habit, data);
+			}
+		}
 
 		// Filter and sort tasks
 		let displayTasks = [...tasks];

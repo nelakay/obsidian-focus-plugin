@@ -759,3 +759,16 @@
 	color: var(--text-faint);
 	margin-left: 4px;
 }
+
+/* ===== Daily Habits (styled like tasks) ===== */
+
+.focus-task-habit {
+	/* Habits look like tasks, slight visual distinction */
+	opacity: 0.9;
+}
+
+.focus-habit-indicator {
+	font-size: 12px;
+	margin-left: auto;
+	opacity: 0.6;
+}

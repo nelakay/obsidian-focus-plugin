@@ -1,4 +1,4 @@
-import { FocusData, Task, TaskSection, WeeklyGoal } from './types';
+import { FocusData, Task, TaskSection, WeeklyGoal, DailyHabit } from './types';
 
 /**
  * Generates a unique ID for tasks
@@ -69,10 +69,12 @@ function parseTaskLine(line: string, section: TaskSection): Task | null {
 /**
  * Parses the frontmatter from the task file
  */
-function parseFrontmatter(content: string): { weekOf: string; goals: WeeklyGoal[]; bodyStart: number } {
+function parseFrontmatter(content: string): { weekOf: string; goals: WeeklyGoal[]; habitResetDate: string; bodyStart: number } {
 	const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---/);
 
-	let weekOf = new Date().toISOString().split('T')[0];
+	const today = new Date().toISOString().split('T')[0];
+	let weekOf = today;
+	let habitResetDate = today;
 	let goals: WeeklyGoal[] = [];
 	let bodyStart = 0;
 
@@ -84,6 +86,12 @@ function parseFrontmatter(content: string): { weekOf: string; goals: WeeklyGoal[
 		const weekOfMatch = frontmatter.match(/weekOf:\s*(\d{4}-\d{2}-\d{2})/);
 		if (weekOfMatch) {
 			weekOf = weekOfMatch[1];
+		}
+
+		// Parse habitResetDate
+		const habitResetMatch = frontmatter.match(/habitResetDate:\s*(\d{4}-\d{2}-\d{2})/);
+		if (habitResetMatch) {
+			habitResetDate = habitResetMatch[1];
 		}
 
 		// Parse goals
@@ -100,7 +108,7 @@ function parseFrontmatter(content: string): { weekOf: string; goals: WeeklyGoal[
 		}
 	}
 
-	return { weekOf, goals, bodyStart };
+	return { weekOf, goals, habitResetDate, bodyStart };
 }
 
 /**
@@ -123,12 +131,31 @@ function parseMonthHeader(line: string): string | null {
 }
 
 /**
+ * Parses a habit line into a DailyHabit object
+ * Format: "- [ ] Habit title" or "- [x] Habit title"
+ */
+function parseHabitLine(line: string): DailyHabit | null {
+	const match = line.match(/^-\s*\[([ xX])\]\s*(.+)$/);
+	if (!match) return null;
+
+	const completedToday = match[1].toLowerCase() === 'x';
+	const title = match[2].trim();
+
+	return {
+		id: generateId(),
+		title,
+		completedToday,
+	};
+}
+
+/**
  * Parses the entire task file content into FocusData
  */
 export function parseTaskFile(content: string): FocusData {
-	const { weekOf, goals, bodyStart } = parseFrontmatter(content);
+	const { weekOf, goals, habitResetDate, bodyStart } = parseFrontmatter(content);
 	const body = content.slice(bodyStart);
 
+	const habits: DailyHabit[] = [];
 	const tasks: FocusData['tasks'] = {
 		immediate: [],
 		thisWeek: [],
@@ -138,6 +165,7 @@ export function parseTaskFile(content: string): FocusData {
 	const completedTasks: Record<string, Task[]> = {};
 
 	let currentSection: TaskSection | null = null;
+	let inHabitsSection = false;
 	let inCompletedSection = false;
 	let currentMonth: string | null = null;
 
@@ -146,23 +174,33 @@ export function parseTaskFile(content: string): FocusData {
 		const trimmedLine = line.trim();
 
 		// Check for section headers
-		if (trimmedLine.toLowerCase() === '## immediate') {
+		if (trimmedLine.toLowerCase() === '## daily habits') {
+			currentSection = null;
+			inHabitsSection = true;
+			inCompletedSection = false;
+			currentMonth = null;
+			continue;
+		} else if (trimmedLine.toLowerCase() === '## immediate') {
 			currentSection = 'immediate';
+			inHabitsSection = false;
 			inCompletedSection = false;
 			currentMonth = null;
 			continue;
 		} else if (trimmedLine.toLowerCase() === '## this week') {
 			currentSection = 'thisWeek';
+			inHabitsSection = false;
 			inCompletedSection = false;
 			currentMonth = null;
 			continue;
 		} else if (trimmedLine.toLowerCase() === '## unscheduled') {
 			currentSection = 'unscheduled';
+			inHabitsSection = false;
 			inCompletedSection = false;
 			currentMonth = null;
 			continue;
 		} else if (trimmedLine.toLowerCase() === '## completed') {
 			currentSection = null;
+			inHabitsSection = false;
 			inCompletedSection = true;
 			currentMonth = null;
 			continue;
@@ -180,9 +218,17 @@ export function parseTaskFile(content: string): FocusData {
 			continue;
 		}
 
-		// Parse task lines
+		// Parse habit or task lines
 		if (trimmedLine.startsWith('-')) {
-			if (inCompletedSection && currentMonth) {
+			if (inHabitsSection) {
+				// Parse as habit (max 3)
+				if (habits.length < 3) {
+					const habit = parseHabitLine(trimmedLine);
+					if (habit) {
+						habits.push(habit);
+					}
+				}
+			} else if (inCompletedSection && currentMonth) {
 				// Parse as completed task (section doesn't matter for archived tasks)
 				const task = parseTaskLine(trimmedLine, 'unscheduled');
 				if (task) {
@@ -201,6 +247,8 @@ export function parseTaskFile(content: string): FocusData {
 	return {
 		weekOf,
 		goals,
+		habits,
+		habitResetDate,
 		tasks,
 		completedTasks,
 	};
@@ -231,6 +279,14 @@ function formatMonthHeader(monthKey: string): string {
 }
 
 /**
+ * Serializes a DailyHabit to markdown format
+ */
+function serializeHabit(habit: DailyHabit): string {
+	const checkbox = habit.completedToday ? '[x]' : '[ ]';
+	return `- ${checkbox} ${habit.title}`;
+}
+
+/**
  * Serializes FocusData back to markdown format
  */
 export function serializeTaskFile(data: FocusData): string {
@@ -239,6 +295,7 @@ export function serializeTaskFile(data: FocusData): string {
 	// Frontmatter
 	lines.push('---');
 	lines.push(`weekOf: ${data.weekOf}`);
+	lines.push(`habitResetDate: ${data.habitResetDate}`);
 	if (data.goals.length > 0) {
 		lines.push('goals:');
 		for (const goal of data.goals) {
@@ -249,6 +306,15 @@ export function serializeTaskFile(data: FocusData): string {
 	}
 	lines.push('---');
 	lines.push('');
+
+	// Daily Habits section (only if there are habits)
+	if (data.habits && data.habits.length > 0) {
+		lines.push('## Daily Habits');
+		for (const habit of data.habits) {
+			lines.push(serializeHabit(habit));
+		}
+		lines.push('');
+	}
 
 	// Immediate section
 	lines.push('## Immediate');
@@ -302,6 +368,8 @@ export function createDefaultTaskFile(): string {
 	return serializeTaskFile({
 		weekOf: today,
 		goals: [],
+		habits: [],
+		habitResetDate: today,
 		tasks: {
 			immediate: [],
 			thisWeek: [],

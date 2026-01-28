@@ -31,9 +31,17 @@ export interface WeeklyGoal {
 	title: string;
 }
 
+export interface DailyHabit {
+	id: string;
+	title: string;
+	completedToday: boolean;
+}
+
 export interface FocusData {
 	weekOf: string;
 	goals: WeeklyGoal[];
+	habits: DailyHabit[]; // Max 3 daily habits
+	habitResetDate: string; // ISO date of last habit reset
 	tasks: {
 		immediate: Task[];
 		thisWeek: Task[];
@@ -44,6 +52,27 @@ export interface FocusData {
 }
 
 export type VaultSyncMode = 'off' | 'all' | 'tag';
+
+// CalDAV settings
+export type CalDAVProvider = 'icloud' | 'fastmail' | 'custom';
+export type ReminderOffset = 0 | 5 | 15 | 30 | 60; // minutes before
+
+export interface CalDAVSettings {
+	enabled: boolean;
+	provider: CalDAVProvider;
+	serverUrl: string;
+	username: string;
+	password: string; // App-specific password
+	selectedCalendarUrl: string;
+	selectedCalendarName: string;
+	defaultReminderOffset: ReminderOffset;
+	syncIntervalMinutes: number;
+}
+
+export interface DiscoveredCalendar {
+	displayName: string;
+	url: string;
+}
 
 export interface FocusPluginSettings {
 	// File settings
@@ -75,8 +104,13 @@ export interface FocusPluginSettings {
 	// Periodic notes
 	dailyNotesFolder: string;
 	dailyNotesFormat: string;
+	dailyNotesTemplate: string; // Path to template file (empty = no template)
 	weeklyNotesFolder: string;
 	weeklyNotesFormat: string;
+	weeklyNotesTemplate: string; // Path to template file (empty = no template)
+
+	// CalDAV calendar sync
+	caldav: CalDAVSettings;
 }
 
 export const DEFAULT_SETTINGS: FocusPluginSettings = {
@@ -94,8 +128,21 @@ export const DEFAULT_SETTINGS: FocusPluginSettings = {
 	hideCompletedTasks: false,
 	dailyNotesFolder: '',
 	dailyNotesFormat: 'YYYY-MM-DD',
+	dailyNotesTemplate: '',
 	weeklyNotesFolder: '',
 	weeklyNotesFormat: 'YYYY-[W]WW',
+	weeklyNotesTemplate: '',
+	caldav: {
+		enabled: false,
+		provider: 'icloud',
+		serverUrl: 'https://caldav.icloud.com',
+		username: '',
+		password: '',
+		selectedCalendarUrl: '',
+		selectedCalendarName: '',
+		defaultReminderOffset: 15,
+		syncIntervalMinutes: 5,
+	},
 };
 
 export const FOCUS_VIEW_TYPE = 'focus-view';

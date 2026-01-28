@@ -7,6 +7,7 @@ import {
 	TaskSection,
 	Task,
 	DayOfWeek,
+	DiscoveredCalendar,
 } from './types';
 import { FocusView } from './FocusView';
 import { AddTaskModal } from './AddTaskModal';
@@ -14,12 +15,17 @@ import { PlanningModal } from './PlanningModal';
 import { EndOfDayModal } from './EndOfDayModal';
 import { FocusSettingTab } from './SettingsTab';
 import { parseTaskFile, serializeTaskFile, createDefaultTaskFile } from './taskParser';
+import { CalDAVClient } from './caldav/CalDAVClient';
 
 export default class FocusPlugin extends Plugin {
 	settings: FocusPluginSettings;
 	private hasShownPlanningPrompt = false;
 	private endOfDayTimeout: ReturnType<typeof setTimeout> | null = null;
 	private syncDebounceTimeout: ReturnType<typeof setTimeout> | null = null;
+
+	// CalDAV integration
+	private caldavClient: CalDAVClient | null = null;
+	private caldavSyncInterval: ReturnType<typeof setInterval> | null = null;
 
 	async onload(): Promise<void> {
 		await this.loadSettings();
@@ -99,6 +105,9 @@ export default class FocusPlugin extends Plugin {
 		}
 		if (this.syncDebounceTimeout) {
 			clearTimeout(this.syncDebounceTimeout);
+		}
+		if (this.caldavSyncInterval) {
+			clearInterval(this.caldavSyncInterval);
 		}
 	}
 
@@ -281,9 +290,12 @@ export default class FocusPlugin extends Plugin {
 		}
 
 		// File doesn't exist, return empty data
+		const today = new Date().toISOString().split('T')[0];
 		return {
-			weekOf: new Date().toISOString().split('T')[0],
+			weekOf: today,
 			goals: [],
+			habits: [],
+			habitResetDate: today,
 			tasks: {
 				immediate: [],
 				thisWeek: [],
@@ -607,8 +619,16 @@ export default class FocusPlugin extends Plugin {
 					await this.app.vault.createFolder(folder);
 				}
 			}
+			// Get content from template or use default
+			let content = `# ${filename}\n\n`;
+			if (this.settings.dailyNotesTemplate) {
+				const templateContent = await this.getTemplateContent(this.settings.dailyNotesTemplate);
+				if (templateContent !== null) {
+					content = templateContent;
+				}
+			}
 			// Create the file
-			file = await this.app.vault.create(filePath, `# ${filename}\n\n`);
+			file = await this.app.vault.create(filePath, content);
 			new Notice(`Created daily note: ${filename}`);
 		}
 
@@ -636,14 +656,44 @@ export default class FocusPlugin extends Plugin {
 					await this.app.vault.createFolder(folder);
 				}
 			}
+			// Get content from template or use default
+			let content = `# ${filename}\n\n`;
+			if (this.settings.weeklyNotesTemplate) {
+				const templateContent = await this.getTemplateContent(this.settings.weeklyNotesTemplate);
+				if (templateContent !== null) {
+					content = templateContent;
+				}
+			}
 			// Create the file
-			file = await this.app.vault.create(filePath, `# ${filename}\n\n`);
+			file = await this.app.vault.create(filePath, content);
 			new Notice(`Created weekly note: ${filename}`);
 		}
 
 		if (file instanceof TFile) {
 			await this.app.workspace.getLeaf().openFile(file);
 		}
+	}
+
+	/**
+	 * Read template file content, returns null if template doesn't exist
+	 */
+	private async getTemplateContent(templatePath: string): Promise<string | null> {
+		if (!templatePath) return null;
+
+		// Ensure .md extension
+		const path = templatePath.endsWith('.md') ? templatePath : `${templatePath}.md`;
+		const file = this.app.vault.getAbstractFileByPath(path);
+
+		if (file instanceof TFile) {
+			try {
+				return await this.app.vault.read(file);
+			} catch {
+				console.warn(`Focus: Could not read template file: ${path}`);
+				return null;
+			}
+		}
+
+		return null;
 	}
 
 	/**
@@ -683,5 +733,62 @@ export default class FocusPlugin extends Plugin {
 			this.refreshFocusView();
 			new Notice('Weekly rollover complete');
 		}
+	}
+
+	// ===== CalDAV Integration Methods =====
+
+	/**
+	 * Test CalDAV connection and return discovered calendars
+	 */
+	async testCalDAVConnection(): Promise<DiscoveredCalendar[]> {
+		// Create or update client with current settings
+		if (!this.caldavClient) {
+			this.caldavClient = new CalDAVClient(this.settings.caldav);
+		} else {
+			this.caldavClient.updateSettings(this.settings.caldav);
+		}
+
+		return await this.caldavClient.testConnection();
+	}
+
+	/**
+	 * Reschedule CalDAV sync interval (called when settings change)
+	 */
+	rescheduleCalDAVSync(): void {
+		// Clear existing interval
+		if (this.caldavSyncInterval) {
+			clearInterval(this.caldavSyncInterval);
+			this.caldavSyncInterval = null;
+		}
+
+		// Don't schedule if not enabled or no calendar selected
+		if (!this.settings.caldav.enabled || !this.settings.caldav.selectedCalendarUrl) {
+			return;
+		}
+
+		// Schedule new interval
+		const intervalMs = this.settings.caldav.syncIntervalMinutes * 60 * 1000;
+		this.caldavSyncInterval = setInterval(() => {
+			void this.syncCalDAV();
+		}, intervalMs);
+	}
+
+	/**
+	 * Perform CalDAV sync (push tasks to calendar)
+	 * Full implementation coming in Phase 2
+	 */
+	async syncCalDAV(): Promise<void> {
+		if (!this.settings.caldav.enabled || !this.settings.caldav.selectedCalendarUrl) {
+			return;
+		}
+
+		// Ensure client is initialized
+		if (!this.caldavClient) {
+			this.caldavClient = new CalDAVClient(this.settings.caldav);
+		}
+
+		// TODO: Implement full sync in Phase 2
+		// For now, just log that sync was triggered
+		console.log('Focus CalDAV: Sync triggered (full implementation coming in Phase 2)');
 	}
 }

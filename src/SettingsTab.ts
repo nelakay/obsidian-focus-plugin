@@ -1,5 +1,5 @@
-import { App, PluginSettingTab, Setting, Hotkey, AbstractInputSuggest, TFolder } from 'obsidian';
-import { DAY_NAMES, DayOfWeek, COMMAND_IDS, VaultSyncMode } from './types';
+import { App, PluginSettingTab, Setting, Hotkey, AbstractInputSuggest, TFolder, Notice } from 'obsidian';
+import { DAY_NAMES, DayOfWeek, COMMAND_IDS, VaultSyncMode, CalDAVProvider, ReminderOffset, DiscoveredCalendar } from './types';
 import type FocusPlugin from './main';
 
 /**
@@ -303,6 +303,20 @@ export class FocusSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
+			.setName('Daily notes template')
+			.setDesc('Path to template file for new daily notes (leave empty for no template)')
+			.addText((text) => {
+				text
+					.setPlaceholder('Templates/Daily.md')
+					.setValue(this.plugin.settings.dailyNotesTemplate)
+					.onChange(async (value) => {
+						this.plugin.settings.dailyNotesTemplate = value;
+						await this.plugin.saveSettings();
+					});
+				new FilePathSuggest(this.app, text.inputEl);
+			});
+
+		new Setting(containerEl)
 			.setName('Weekly notes folder')
 			.setDesc('Folder where weekly notes are stored (leave empty for vault root)')
 			.addText((text) =>
@@ -328,11 +342,211 @@ export class FocusSettingTab extends PluginSettingTab {
 					})
 			);
 
+		new Setting(containerEl)
+			.setName('Weekly notes template')
+			.setDesc('Path to template file for new weekly notes (leave empty for no template)')
+			.addText((text) => {
+				text
+					.setPlaceholder('Templates/Weekly.md')
+					.setValue(this.plugin.settings.weeklyNotesTemplate)
+					.onChange(async (value) => {
+						this.plugin.settings.weeklyNotesTemplate = value;
+						await this.plugin.saveSettings();
+					});
+				new FilePathSuggest(this.app, text.inputEl);
+			});
+
+		// ===== CALENDAR INTEGRATION SECTION =====
+		this.renderCalDAVSection(containerEl);
+
 		// ===== ABOUT SECTION =====
 		new Setting(containerEl)
 			.setName('About')
 			.setDesc('Focus is a visibility firewall for your tasks. It helps you focus on what matters now by hiding everything else.')
 			.setHeading();
+	}
+
+	private discoveredCalendars: DiscoveredCalendar[] = [];
+
+	private renderCalDAVSection(containerEl: HTMLElement): void {
+		new Setting(containerEl).setName('Calendar integration').setHeading();
+
+		// Enable toggle
+		new Setting(containerEl)
+			.setName('Enable CalDAV sync')
+			.setDesc('Sync tasks with do dates to your calendar as reminders')
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.caldav.enabled)
+					.onChange(async (value) => {
+						this.plugin.settings.caldav.enabled = value;
+						await this.plugin.saveSettings();
+						this.display(); // Re-render to show/hide options
+					})
+			);
+
+		if (!this.plugin.settings.caldav.enabled) return;
+
+		// Provider dropdown
+		new Setting(containerEl)
+			.setName('Calendar provider')
+			.setDesc('Select your calendar service')
+			.addDropdown((dropdown) =>
+				dropdown
+					.addOption('icloud', 'iCloud')
+					.addOption('fastmail', 'Fastmail')
+					.addOption('custom', 'Custom CalDAV server')
+					.setValue(this.plugin.settings.caldav.provider)
+					.onChange(async (value: CalDAVProvider) => {
+						this.plugin.settings.caldav.provider = value;
+						// Auto-fill server URL based on provider
+						if (value === 'icloud') {
+							this.plugin.settings.caldav.serverUrl = 'https://caldav.icloud.com';
+						} else if (value === 'fastmail') {
+							this.plugin.settings.caldav.serverUrl = 'https://caldav.fastmail.com';
+						}
+						await this.plugin.saveSettings();
+						this.display();
+					})
+			);
+
+		// Server URL (only show for custom)
+		if (this.plugin.settings.caldav.provider === 'custom') {
+			new Setting(containerEl)
+				.setName('Server URL')
+				.setDesc('CalDAV server URL')
+				.addText((text) =>
+					text
+						.setPlaceholder('https://caldav.example.com')
+						.setValue(this.plugin.settings.caldav.serverUrl)
+						.onChange(async (value) => {
+							this.plugin.settings.caldav.serverUrl = value;
+							await this.plugin.saveSettings();
+						})
+				);
+		}
+
+		// Username
+		new Setting(containerEl)
+			.setName('Username')
+			.setDesc(this.plugin.settings.caldav.provider === 'icloud' ? 'Your Apple ID email' : 'Your account email')
+			.addText((text) =>
+				text
+					.setPlaceholder('email@example.com')
+					.setValue(this.plugin.settings.caldav.username)
+					.onChange(async (value) => {
+						this.plugin.settings.caldav.username = value;
+						await this.plugin.saveSettings();
+					})
+			);
+
+		// Password
+		const passwordDesc = this.plugin.settings.caldav.provider === 'icloud'
+			? 'App-specific password (generate at appleid.apple.com)'
+			: 'Your account password or app-specific password';
+		new Setting(containerEl)
+			.setName('Password')
+			.setDesc(passwordDesc)
+			.addText((text) => {
+				text.inputEl.type = 'password';
+				text
+					.setPlaceholder('••••••••')
+					.setValue(this.plugin.settings.caldav.password)
+					.onChange(async (value) => {
+						this.plugin.settings.caldav.password = value;
+						await this.plugin.saveSettings();
+					});
+			});
+
+		// Test connection button
+		new Setting(containerEl)
+			.setName('Test connection')
+			.setDesc('Verify credentials and discover calendars')
+			.addButton((button) =>
+				button
+					.setButtonText('Test Connection')
+					.setCta()
+					.onClick(async () => {
+						button.setButtonText('Connecting...');
+						button.setDisabled(true);
+						try {
+							this.discoveredCalendars = await this.plugin.testCalDAVConnection();
+							new Notice(`Found ${this.discoveredCalendars.length} calendar(s)`);
+							this.display(); // Re-render to show calendar dropdown
+						} catch (e) {
+							const error = e as Error;
+							new Notice(`Connection failed: ${error.message}`);
+						} finally {
+							button.setButtonText('Test Connection');
+							button.setDisabled(false);
+						}
+					})
+			);
+
+		// Calendar selection (only show if we have discovered calendars or a saved selection)
+		if (this.discoveredCalendars.length > 0 || this.plugin.settings.caldav.selectedCalendarUrl) {
+			new Setting(containerEl)
+				.setName('Calendar')
+				.setDesc('Select which calendar to sync tasks to')
+				.addDropdown((dropdown) => {
+					// Add discovered calendars
+					for (const cal of this.discoveredCalendars) {
+						dropdown.addOption(cal.url, cal.displayName);
+					}
+					// If we have a saved selection but no discovered calendars, show it
+					if (this.discoveredCalendars.length === 0 && this.plugin.settings.caldav.selectedCalendarUrl) {
+						dropdown.addOption(
+							this.plugin.settings.caldav.selectedCalendarUrl,
+							this.plugin.settings.caldav.selectedCalendarName || 'Selected calendar'
+						);
+					}
+					dropdown
+						.setValue(this.plugin.settings.caldav.selectedCalendarUrl)
+						.onChange(async (value) => {
+							this.plugin.settings.caldav.selectedCalendarUrl = value;
+							// Save the display name too
+							const cal = this.discoveredCalendars.find(c => c.url === value);
+							this.plugin.settings.caldav.selectedCalendarName = cal?.displayName || '';
+							await this.plugin.saveSettings();
+						});
+				});
+		}
+
+		// Reminder offset
+		new Setting(containerEl)
+			.setName('Default reminder')
+			.setDesc('How long before the scheduled time to show a reminder')
+			.addDropdown((dropdown) =>
+				dropdown
+					.addOption('0', 'At time of event')
+					.addOption('5', '5 minutes before')
+					.addOption('15', '15 minutes before')
+					.addOption('30', '30 minutes before')
+					.addOption('60', '1 hour before')
+					.setValue(this.plugin.settings.caldav.defaultReminderOffset.toString())
+					.onChange(async (value) => {
+						this.plugin.settings.caldav.defaultReminderOffset = parseInt(value) as ReminderOffset;
+						await this.plugin.saveSettings();
+					})
+			);
+
+		// Sync interval
+		new Setting(containerEl)
+			.setName('Sync interval')
+			.setDesc('How often to sync with calendar (in minutes)')
+			.addDropdown((dropdown) =>
+				dropdown
+					.addOption('1', 'Every minute')
+					.addOption('5', 'Every 5 minutes')
+					.addOption('15', 'Every 15 minutes')
+					.addOption('30', 'Every 30 minutes')
+					.setValue(this.plugin.settings.caldav.syncIntervalMinutes.toString())
+					.onChange(async (value) => {
+						this.plugin.settings.caldav.syncIntervalMinutes = parseInt(value);
+						await this.plugin.saveSettings();
+						this.plugin.rescheduleCalDAVSync();
+					})
+			);
 	}
 
 	private renderHotkeysSection(containerEl: HTMLElement): void {
