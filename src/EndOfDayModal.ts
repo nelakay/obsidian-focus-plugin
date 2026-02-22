@@ -115,6 +115,16 @@ export class EndOfDayModal extends Modal {
 			void this.plugin.openOrCreateDailyNote();
 		});
 
+		// Open Planning button
+		const planningBtn = actionsEl.createEl('button', {
+			text: 'Open planning',
+			cls: 'focus-planning-btn',
+		});
+		planningBtn.addEventListener('click', () => {
+			this.close();
+			this.plugin.openPlanningModal();
+		});
+
 		const doneBtn = actionsEl.createEl('button', {
 			text: 'Done',
 			cls: 'mod-cta',

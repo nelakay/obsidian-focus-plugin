@@ -1,5 +1,6 @@
 import { ItemView, WorkspaceLeaf, Menu, Notice, TFile } from 'obsidian';
 import { FOCUS_VIEW_TYPE, Task, TaskSection, FocusData, DailyHabit } from './types';
+import { computeNextRecurrenceDate } from './taskParser';
 import type FocusPlugin from './main';
 
 export class FocusView extends ItemView {
@@ -181,6 +182,23 @@ export class FocusView extends ItemView {
 
 			// Add to completed archive
 			data.completedTasks[monthKey].push(task);
+
+			// If recurring, create next occurrence
+			if (task.recurrence) {
+				const nextDoDate = computeNextRecurrenceDate(task.recurrence, task.doDate);
+				const nextTask: Task = {
+					id: Date.now().toString(36) + Math.random().toString(36).substring(2, 11),
+					title: task.title,
+					completed: false,
+					section: 'thisWeek',
+					url: task.url,
+					doDate: nextDoDate,
+					doTime: task.doTime,
+					recurrence: { ...task.recurrence },
+				};
+				data.tasks.thisWeek.push(nextTask);
+				new Notice(`Next occurrence created for ${nextDoDate}`);
+			}
 		} else {
 			// Task is being uncompleted - this shouldn't happen from active list
 			// but handle it gracefully
@@ -419,7 +437,7 @@ export class FocusView extends ItemView {
 			const filePath = this.plugin.settings.taskFilePath;
 			const file = this.plugin.app.vault.getAbstractFileByPath(filePath);
 			if (file instanceof TFile) {
-				void this.plugin.app.workspace.getLeaf().openFile(file);
+				void this.plugin.openFileWithoutDuplicate(file);
 			}
 		});
 	}
@@ -894,7 +912,7 @@ export class FocusView extends ItemView {
 					.onClick(() => {
 						const file = this.plugin.app.vault.getAbstractFileByPath(task.sourceFile!);
 						if (file instanceof TFile) {
-							void this.plugin.app.workspace.getLeaf().openFile(file);
+							void this.plugin.openFileWithoutDuplicate(file);
 						}
 					});
 			});

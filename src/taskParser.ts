@@ -1,4 +1,4 @@
-import { FocusData, Task, TaskSection, WeeklyGoal, DailyHabit } from './types';
+import { FocusData, Task, TaskSection, WeeklyGoal, DailyHabit, Recurrence, RecurrenceType } from './types';
 
 /**
  * Generates a unique ID for tasks
@@ -54,6 +54,23 @@ function parseTaskLine(line: string, section: TaskSection): Task | null {
 		title = title.replace(dateMatch[0], '').trim();
 	}
 
+	// Extract recurrence if present (format: 🔁 days:3, 🔁 weeks:2:1, 🔁 months:1:19)
+	let recurrence: Recurrence | undefined;
+	const recurrenceMatch = title.match(/\s*🔁\s*(days|weeks|months):(\d+)(?::(\d+))?\s*$/);
+	if (recurrenceMatch) {
+		recurrence = {
+			type: recurrenceMatch[1] as RecurrenceType,
+			interval: parseInt(recurrenceMatch[2]),
+		};
+		if (recurrence.type === 'weeks' && recurrenceMatch[3]) {
+			recurrence.dayOfWeek = parseInt(recurrenceMatch[3]);
+		}
+		if (recurrence.type === 'months' && recurrenceMatch[3]) {
+			recurrence.dayOfMonth = parseInt(recurrenceMatch[3]);
+		}
+		title = title.replace(recurrenceMatch[0], '').trim();
+	}
+
 	return {
 		id: generateId(),
 		title,
@@ -63,6 +80,7 @@ function parseTaskLine(line: string, section: TaskSection): Task | null {
 		url,
 		doDate,
 		doTime,
+		recurrence,
 	};
 }
 
@@ -261,9 +279,16 @@ function serializeTask(task: Task, includeCompletedAt = false): string {
 	const checkbox = task.completed ? '[x]' : '[ ]';
 	const datePart = task.doDate ? ` 📅 ${task.doDate}` : '';
 	const timePart = task.doTime ? ` ⏰ ${task.doTime}` : '';
+	const recurrencePart = task.recurrence
+		? ` 🔁 ${task.recurrence.type}:${task.recurrence.interval}${
+			task.recurrence.type === 'weeks' && task.recurrence.dayOfWeek != null ? ':' + task.recurrence.dayOfWeek : ''
+		}${
+			task.recurrence.type === 'months' && task.recurrence.dayOfMonth != null ? ':' + task.recurrence.dayOfMonth : ''
+		}`
+		: '';
 	const completedPart = includeCompletedAt && task.completedAt ? ` ✅ ${task.completedAt}` : '';
 	const urlPart = task.url ? ` 🔗 ${task.url}` : '';
-	return `- ${checkbox} ${task.title}${datePart}${timePart}${completedPart}${urlPart}`;
+	return `- ${checkbox} ${task.title}${datePart}${timePart}${recurrencePart}${completedPart}${urlPart}`;
 }
 
 /**
@@ -395,4 +420,31 @@ export function getCurrentWeekStart(): string {
  */
 export function isSunday(): boolean {
 	return new Date().getDay() === 0;
+}
+
+/**
+ * Computes the next occurrence date for a recurring task
+ */
+export function computeNextRecurrenceDate(recurrence: Recurrence, fromDate?: string): string {
+	const base = fromDate ? new Date(fromDate + 'T00:00:00') : new Date();
+
+	switch (recurrence.type) {
+		case 'days':
+			base.setDate(base.getDate() + recurrence.interval);
+			break;
+		case 'weeks':
+			base.setDate(base.getDate() + recurrence.interval * 7);
+			break;
+		case 'months': {
+			base.setMonth(base.getMonth() + recurrence.interval);
+			if (recurrence.dayOfMonth != null) {
+				// Clamp to last day of the target month
+				const lastDay = new Date(base.getFullYear(), base.getMonth() + 1, 0).getDate();
+				base.setDate(Math.min(recurrence.dayOfMonth, lastDay));
+			}
+			break;
+		}
+	}
+
+	return base.toISOString().split('T')[0];
 }

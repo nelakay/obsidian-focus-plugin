@@ -1,5 +1,5 @@
 import { Modal, Setting } from 'obsidian';
-import { TaskSection } from './types';
+import { TaskSection, Recurrence, RecurrenceType } from './types';
 import type FocusPlugin from './main';
 
 export class AddTaskModal extends Modal {
@@ -10,12 +10,15 @@ export class AddTaskModal extends Modal {
 	taskDoDate: string = '';
 	taskDoTime: string = '';
 	addToThisWeek: boolean;
-	onSubmit: (title: string, section: TaskSection, url?: string, doDate?: string, doTime?: string) => void;
+	recurrenceType: RecurrenceType | 'none' = 'none';
+	recurrenceInterval: number = 1;
+	recurrenceDayOfMonth: number = 1;
+	onSubmit: (title: string, section: TaskSection, url?: string, doDate?: string, doTime?: string, recurrence?: Recurrence) => void;
 
 	constructor(
 		plugin: FocusPlugin,
 		defaultToThisWeek: boolean,
-		onSubmit: (title: string, section: TaskSection, url?: string, doDate?: string, doTime?: string) => void
+		onSubmit: (title: string, section: TaskSection, url?: string, doDate?: string, doTime?: string, recurrence?: Recurrence) => void
 	) {
 		super(plugin.app);
 		this.plugin = plugin;
@@ -112,6 +115,56 @@ export class AddTaskModal extends Modal {
 				});
 			});
 
+		// Recurrence setting
+		const recurrenceContainer = contentEl.createDiv('focus-recurrence-container');
+
+		new Setting(recurrenceContainer)
+			.setName('Repeat')
+			.setDesc('Make this a recurring task')
+			.addDropdown((dropdown) => {
+				dropdown
+					.addOption('none', 'Never')
+					.addOption('days', 'Every N days')
+					.addOption('weeks', 'Every N weeks')
+					.addOption('months', 'Every N months')
+					.setValue(this.recurrenceType)
+					.onChange((value) => {
+						this.recurrenceType = value as RecurrenceType | 'none';
+						recurrenceDetailsEl.style.display = value === 'none' ? 'none' : 'block';
+						dayOfMonthSetting.settingEl.style.display = value === 'months' ? '' : 'none';
+					});
+			});
+
+		const recurrenceDetailsEl = recurrenceContainer.createDiv('focus-recurrence-details');
+		recurrenceDetailsEl.style.display = 'none';
+
+		new Setting(recurrenceDetailsEl)
+			.setName('Every')
+			.addText((text) => {
+				text.inputEl.type = 'number';
+				text.inputEl.min = '1';
+				text.inputEl.max = '365';
+				text.inputEl.style.width = '60px';
+				text.setValue('1');
+				text.onChange((value) => {
+					this.recurrenceInterval = parseInt(value) || 1;
+				});
+			});
+
+		const dayOfMonthSetting = new Setting(recurrenceDetailsEl)
+			.setName('Day of month')
+			.addText((text) => {
+				text.inputEl.type = 'number';
+				text.inputEl.min = '1';
+				text.inputEl.max = '31';
+				text.inputEl.style.width = '60px';
+				text.setValue('1');
+				text.onChange((value) => {
+					this.recurrenceDayOfMonth = parseInt(value) || 1;
+				});
+			});
+		dayOfMonthSetting.settingEl.style.display = 'none';
+
 		new Setting(contentEl)
 			.setName('Add to this week')
 			.setDesc('Schedule this task for the current week')
@@ -148,7 +201,19 @@ export class AddTaskModal extends Modal {
 		const url = this.taskUrl.trim() || undefined;
 		const doDate = this.taskDoDate || undefined;
 		const doTime = this.taskDoTime || undefined;
-		this.onSubmit(this.taskTitle.trim(), section, url, doDate, doTime);
+
+		let recurrence: Recurrence | undefined;
+		if (this.recurrenceType !== 'none') {
+			recurrence = {
+				type: this.recurrenceType,
+				interval: this.recurrenceInterval,
+			};
+			if (this.recurrenceType === 'months') {
+				recurrence.dayOfMonth = this.recurrenceDayOfMonth;
+			}
+		}
+
+		this.onSubmit(this.taskTitle.trim(), section, url, doDate, doTime, recurrence);
 		this.close();
 	}
 

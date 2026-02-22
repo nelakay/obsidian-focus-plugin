@@ -11,9 +11,6 @@
 	"keywords": [],
 	"author": "",
 	"license": "MIT",
-	"dependencies": {
-		"tsdav": "^2.1.1"
-	},
 	"devDependencies": {
 		"@types/node": "^20.11.0",
 		"builtin-modules": "^3.3.0",
@@ -21,5 +18,8 @@
 		"obsidian": "latest",
 		"tslib": "^2.6.2",
 		"typescript": "^5.3.3"
+	},
+	"dependencies": {
+		"@supabase/supabase-js": "^2.95.3"
 	}
 }

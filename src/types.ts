@@ -10,6 +10,16 @@ export interface Task {
 	url?: string; // Optional URL link
 	doDate?: string; // ISO date: "2026-01-27" - when to be reminded
 	doTime?: string; // 24h time: "14:30"
+	recurrence?: Recurrence; // Recurring task rule
+}
+
+export type RecurrenceType = 'days' | 'weeks' | 'months';
+
+export interface Recurrence {
+	type: RecurrenceType;
+	interval: number;        // every N days/weeks/months
+	dayOfWeek?: number;      // 0-6 for 'weeks' type (0=Sunday)
+	dayOfMonth?: number;     // 1-31 for 'months' type
 }
 
 export type TaskSection = 'immediate' | 'thisWeek' | 'unscheduled';
@@ -53,27 +63,6 @@ export interface FocusData {
 
 export type VaultSyncMode = 'off' | 'all' | 'tag';
 
-// CalDAV settings
-export type CalDAVProvider = 'icloud' | 'fastmail' | 'custom';
-export type ReminderOffset = 0 | 5 | 15 | 30 | 60; // minutes before
-
-export interface CalDAVSettings {
-	enabled: boolean;
-	provider: CalDAVProvider;
-	serverUrl: string;
-	username: string;
-	password: string; // App-specific password
-	selectedCalendarUrl: string;
-	selectedCalendarName: string;
-	defaultReminderOffset: ReminderOffset;
-	syncIntervalMinutes: number;
-}
-
-export interface DiscoveredCalendar {
-	displayName: string;
-	url: string;
-}
-
 export interface FocusPluginSettings {
 	// File settings
 	taskFilePath: string;
@@ -109,8 +98,12 @@ export interface FocusPluginSettings {
 	weeklyNotesFormat: string;
 	weeklyNotesTemplate: string; // Path to template file (empty = no template)
 
-	// CalDAV calendar sync
-	caldav: CalDAVSettings;
+	// Cloud sync (Supabase)
+	cloudSyncEnabled: boolean;
+	supabaseUrl: string;
+	supabaseAnonKey: string;
+	supabaseEmail: string;
+	supabasePassword: string;
 }
 
 export const DEFAULT_SETTINGS: FocusPluginSettings = {
@@ -132,17 +125,11 @@ export const DEFAULT_SETTINGS: FocusPluginSettings = {
 	weeklyNotesFolder: '',
 	weeklyNotesFormat: 'YYYY-[W]WW',
 	weeklyNotesTemplate: '',
-	caldav: {
-		enabled: false,
-		provider: 'icloud',
-		serverUrl: 'https://caldav.icloud.com',
-		username: '',
-		password: '',
-		selectedCalendarUrl: '',
-		selectedCalendarName: '',
-		defaultReminderOffset: 15,
-		syncIntervalMinutes: 5,
-	},
+	cloudSyncEnabled: false,
+	supabaseUrl: '',
+	supabaseAnonKey: '',
+	supabaseEmail: '',
+	supabasePassword: '',
 };
 
 export const FOCUS_VIEW_TYPE = 'focus-view';

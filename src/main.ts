@@ -1,4 +1,4 @@
-import { Notice, Plugin, WorkspaceLeaf, TFile, normalizePath } from 'obsidian';
+import { Modal, Notice, Plugin, Setting, WorkspaceLeaf, TFile, normalizePath } from 'obsidian';
 import {
 	FocusPluginSettings,
 	DEFAULT_SETTINGS,
@@ -7,7 +7,7 @@ import {
 	TaskSection,
 	Task,
 	DayOfWeek,
-	DiscoveredCalendar,
+	Recurrence,
 } from './types';
 import { FocusView } from './FocusView';
 import { AddTaskModal } from './AddTaskModal';
@@ -15,7 +15,8 @@ import { PlanningModal } from './PlanningModal';
 import { EndOfDayModal } from './EndOfDayModal';
 import { FocusSettingTab } from './SettingsTab';
 import { parseTaskFile, serializeTaskFile, createDefaultTaskFile } from './taskParser';
-import { CalDAVClient } from './caldav/CalDAVClient';
+import { initSupabase, signIn, signOut as supabaseSignOut, destroySupabase, getUserId } from './supabaseClient';
+import { pullFromRemote, pushToRemote, subscribeToRealtime, unsubscribeFromRealtime, migrateTaskIds } from './supabaseSync';
 
 export default class FocusPlugin extends Plugin {
 	settings: FocusPluginSettings;
@@ -23,9 +24,13 @@ export default class FocusPlugin extends Plugin {
 	private endOfDayTimeout: ReturnType<typeof setTimeout> | null = null;
 	private syncDebounceTimeout: ReturnType<typeof setTimeout> | null = null;
 
-	// CalDAV integration
-	private caldavClient: CalDAVClient | null = null;
-	private caldavSyncInterval: ReturnType<typeof setInterval> | null = null;
+	// Cloud sync state
+	isSyncingFromRemote = false;
+	private cloudSyncDebounce: ReturnType<typeof setTimeout> | null = null;
+
+
+	// Overflow modal state — suppresses remote sync while user is resolving overflow
+	overflowModalOpen = false;
 
 	async onload(): Promise<void> {
 		await this.loadSettings();
@@ -95,8 +100,25 @@ export default class FocusPlugin extends Plugin {
 		// Watch the focus task file for direct edits
 		this.setupTaskFileWatcher();
 
+		// Watch for task file being moved/renamed
+		this.setupTaskFileRenameWatcher();
+
 		// Ensure task file exists on load
 		await this.ensureTaskFileExists();
+
+		// Initialize cloud sync if enabled
+		if (this.settings.cloudSyncEnabled) {
+			// Delay to let Obsidian fully load
+			setTimeout(() => void this.initCloudSync(), 1500);
+		}
+
+		// Auto-sort tasks by do date on load (delay to let everything initialize)
+		setTimeout(() => void this.runAutoSort(), 3000);
+
+		// Periodic auto-sort every 5 minutes
+		this.registerInterval(window.setInterval(() => {
+			void this.runAutoSort();
+		}, 5 * 60 * 1000));
 	}
 
 	onunload(): void {
@@ -106,8 +128,158 @@ export default class FocusPlugin extends Plugin {
 		if (this.syncDebounceTimeout) {
 			clearTimeout(this.syncDebounceTimeout);
 		}
-		if (this.caldavSyncInterval) {
-			clearInterval(this.caldavSyncInterval);
+		if (this.cloudSyncDebounce) {
+			clearTimeout(this.cloudSyncDebounce);
+		}
+		unsubscribeFromRealtime();
+		destroySupabase();
+	}
+
+	// ============================================================
+	// Cloud Sync
+	// ============================================================
+
+	/**
+	 * Initialize cloud sync: connect to Supabase, sign in, do initial sync,
+	 * and subscribe to Realtime for live updates.
+	 */
+	async initCloudSync(): Promise<void> {
+		if (!this.settings.cloudSyncEnabled) return;
+
+		try {
+			initSupabase();
+
+			if (this.settings.supabaseEmail && this.settings.supabasePassword) {
+				const { error } = await signIn(this.settings.supabaseEmail, this.settings.supabasePassword);
+				if (error) {
+					console.error('Focus: Cloud sync sign-in failed:', error);
+					new Notice(`Focus cloud sync: Sign-in failed — ${error}`);
+					return;
+				}
+			} else {
+				console.warn('Focus: Cloud sync enabled but no email/password configured');
+				return;
+			}
+
+			// Pull remote data first (Supabase is source of truth)
+			const remoteData = await pullFromRemote();
+			const remoteHasTasks = remoteData && (
+				Object.values(remoteData.tasks).some(arr => arr.length > 0) ||
+				Object.keys(remoteData.completedTasks).length > 0
+			);
+
+			if (remoteHasTasks) {
+				// Remote has data — use it, overwriting local
+				this.isSyncingFromRemote = true;
+				await this.saveTaskDataWithoutSync(remoteData);
+				this.refreshFocusView();
+				this.isSyncingFromRemote = false;
+			} else {
+				// Remote is empty — seed it with local data (first-time setup)
+				const data = await this.loadTaskData();
+				migrateTaskIds(data);
+				await pushToRemote(data);
+				await this.saveTaskDataWithoutSync(data); // save migrated IDs
+			}
+
+			// Subscribe to realtime changes
+			subscribeToRealtime(() => {
+				this.onRemoteChange();
+			});
+
+			console.log('Focus: Cloud sync initialized');
+		} catch (err) {
+			console.error('Focus: Cloud sync init failed', err);
+		}
+	}
+
+	/**
+	 * Tear down cloud sync: unsubscribe, sign out, destroy client.
+	 */
+	async teardownCloudSync(): Promise<void> {
+		unsubscribeFromRealtime();
+		await supabaseSignOut();
+		destroySupabase();
+	}
+
+	/**
+	 * Called when a Realtime event fires — pull fresh data from Supabase.
+	 * Uses a debounce to batch rapid-fire events.
+	 */
+	private onRemoteChange(): void {
+		if (this.isSyncingFromRemote || this.overflowModalOpen) return;
+
+		if (this.cloudSyncDebounce) {
+			clearTimeout(this.cloudSyncDebounce);
+		}
+
+		this.cloudSyncDebounce = setTimeout(async () => {
+			this.isSyncingFromRemote = true;
+			try {
+				const remoteData = await pullFromRemote();
+				if (remoteData) {
+					await this.saveTaskDataWithoutSync(remoteData);
+					this.refreshFocusView();
+				}
+			} catch (err) {
+				console.error('Focus: Remote sync failed', err);
+			} finally {
+				this.isSyncingFromRemote = false;
+			}
+		}, 500);
+	}
+
+	/**
+	 * Push local changes to Supabase (called after saveTaskData).
+	 * Skipped when we are applying remote changes to avoid loops.
+	 */
+	private async pushLocalChanges(data: FocusData): Promise<void> {
+		if (!this.settings.cloudSyncEnabled || this.isSyncingFromRemote || !getUserId()) return;
+
+		try {
+			await pushToRemote(data);
+		} catch (err) {
+			console.error('Focus: Failed to push changes to cloud', err);
+		}
+	}
+
+	/**
+	 * Pull any remote changes that were suppressed while the overflow modal was open.
+	 */
+	async catchUpRemoteSync(): Promise<void> {
+		if (!this.settings.cloudSyncEnabled || !getUserId()) return;
+		this.isSyncingFromRemote = true;
+		try {
+			const remoteData = await pullFromRemote();
+			if (remoteData) {
+				await this.saveTaskDataWithoutSync(remoteData);
+				this.refreshFocusView();
+			}
+		} catch (err) {
+			console.error('Focus: Catch-up sync failed', err);
+		} finally {
+			this.isSyncingFromRemote = false;
+		}
+	}
+
+	/**
+	 * Save task data to the markdown file WITHOUT triggering a cloud push.
+	 * Used when applying remote changes to avoid sync loops.
+	 */
+	private async saveTaskDataWithoutSync(data: FocusData): Promise<void> {
+		const filePath = normalizePath(this.settings.taskFilePath);
+		let file = this.app.vault.getAbstractFileByPath(filePath);
+
+		const content = serializeTaskFile(data);
+
+		if (file instanceof TFile) {
+			await this.app.vault.modify(file, content);
+		} else {
+			await this.ensureTaskFileExists();
+			file = this.app.vault.getAbstractFileByPath(filePath);
+			if (file instanceof TFile) {
+				await this.app.vault.modify(file, content);
+			}
 		}
 	}
 
@@ -159,6 +331,40 @@ export default class FocusPlugin extends Plugin {
 				this.syncDebounceTimeout = setTimeout(() => {
 					this.refreshFocusView();
 				}, 500);
+			})
+		);
+	}
+
+	/**
+	 * Watch for the task file being moved or renamed in the vault.
+	 * When detected, prompt the user to update the setting to the new path.
+	 */
+	private setupTaskFileRenameWatcher(): void {
+		this.registerEvent(
+			this.app.vault.on('rename', (file, oldPath) => {
+				if (!(file instanceof TFile)) return;
+				if (normalizePath(oldPath) !== normalizePath(this.settings.taskFilePath)) return;
+
+				const newPath = file.path;
+				const fragment = document.createDocumentFragment();
+				fragment.appendText('Your task file was moved. ');
+
+				const updateLink = document.createElement('a');
+				updateLink.textContent = 'Update path';
+				updateLink.href = '#';
+				updateLink.style.fontWeight = 'bold';
+				updateLink.addEventListener('click', async (e) => {
+					e.preventDefault();
+					this.settings.taskFilePath = newPath;
+					await this.saveSettings();
+					this.refreshFocusView();
+					new Notice(`Task file path updated to: ${newPath}`);
+				});
+				fragment.appendChild(updateLink);
+
+				fragment.appendText(` → ${newPath}`);
+
+				new Notice(fragment, 10000);
 			})
 		);
 	}
@@ -321,6 +527,9 @@ export default class FocusPlugin extends Plugin {
 				await this.app.vault.modify(file, content);
 			}
 		}
+
+		// Push to cloud if enabled (skipped when applying remote changes)
+		void this.pushLocalChanges(data);
 	}
 
 	/**
@@ -328,13 +537,13 @@ export default class FocusPlugin extends Plugin {
 	 * @param defaultToThisWeek - If true, the "Add to This Week" checkbox will be checked by default
 	 */
 	openAddTaskModal(defaultToThisWeek: boolean = false): void {
-		const modal = new AddTaskModal(this, defaultToThisWeek, (title, section, url, doDate, doTime) => {
-			void this.addTask(title, section, url, doDate, doTime);
+		const modal = new AddTaskModal(this, defaultToThisWeek, (title, section, url, doDate, doTime, recurrence) => {
+			void this.addTask(title, section, url, doDate, doTime, recurrence);
 		});
 		modal.open();
 	}
 
-	private async addTask(title: string, section: TaskSection, url?: string, doDate?: string, doTime?: string): Promise<void> {
+	private async addTask(title: string, section: TaskSection, url?: string, doDate?: string, doTime?: string, recurrence?: Recurrence): Promise<void> {
 		const data = await this.loadTaskData();
 
 		// Check max immediate (though currently modal only supports thisWeek/unscheduled)
@@ -354,6 +563,7 @@ export default class FocusPlugin extends Plugin {
 			url,
 			doDate,
 			doTime,
+			recurrence,
 		};
 
 		data.tasks[section].push(newTask);
@@ -364,6 +574,58 @@ export default class FocusPlugin extends Plugin {
 		const sectionName =
 			section === 'immediate' ? 'immediate' : section === 'thisWeek' ? 'this week' : 'unscheduled';
 		new Notice(`Task added to ${sectionName}`);
+	}
+
+	/**
+	 * Auto-sort: move today's do-date tasks from thisWeek to immediate,
+	 * and sort sections by do date
+	 */
+	async runAutoSort(): Promise<void> {
+		if (this.overflowModalOpen) return;
+		const data = await this.loadTaskData();
+		const today = new Date().toISOString().split('T')[0];
+		const maxImmediate = this.settings.maxImmediateTasks;
+		let changed = false;
+
+		// Find thisWeek tasks with doDate === today
+		const todayTasks = data.tasks.thisWeek.filter(t => t.doDate === today && !t.completed);
+		const overflowTasks: Task[] = [];
+
+		for (const task of todayTasks) {
+			const activeImmediate = data.tasks.immediate.filter(t => !t.completed);
+			if (activeImmediate.length < maxImmediate) {
+				// Move to immediate
+				data.tasks.thisWeek = data.tasks.thisWeek.filter(t => t.id !== task.id);
+				task.section = 'immediate';
+				data.tasks.immediate.unshift(task);
+				changed = true;
+			} else {
+				overflowTasks.push(task);
+			}
+		}
+
+		// Sort sections: do-date tasks first (earliest first), then non-do-date
+		for (const section of ['immediate', 'thisWeek', 'unscheduled'] as TaskSection[]) {
+			data.tasks[section].sort((a, b) => {
+				if (a.completed !== b.completed) return a.completed ? 1 : -1;
+				if (a.doDate && !b.doDate) return -1;
+				if (!a.doDate && b.doDate) return 1;
+				if (a.doDate && b.doDate) return a.doDate.localeCompare(b.doDate);
+				return 0;
+			});
+			changed = true;
+		}
+
+		if (changed) {
+			await this.saveTaskData(data);
+			this.refreshFocusView();
+		}
+
+		// Show overflow modal if needed
+		if (overflowTasks.length > 0) {
+			const modal = new AutoSortOverflowModal(this, data, overflowTasks);
+			modal.open();
+		}
 	}
 
 	openPlanningModal(): void {
@@ -542,6 +804,22 @@ export default class FocusPlugin extends Plugin {
 	}
 
 	/**
+	 * Open a file, reusing an existing tab if the file is already open.
+	 * Prevents duplicate tabs from being opened.
+	 */
+	async openFileWithoutDuplicate(file: TFile): Promise<void> {
+		// Check if the file is already open in any leaf
+		const existingLeaf = this.app.workspace.getLeavesOfType('markdown')
+			.find(leaf => (leaf.view as any)?.file?.path === file.path);
+
+		if (existingLeaf) {
+			this.app.workspace.setActiveLeaf(existingLeaf, { focus: true });
+		} else {
+			await this.app.workspace.getLeaf(false).openFile(file);
+		}
+	}
+
+	/**
 	 * Open a wiki-linked note from a task
 	 */
 	async openLinkedNote(link: string): Promise<void> {
@@ -553,12 +831,11 @@ export default class FocusPlugin extends Plugin {
 		const file = this.app.metadataCache.getFirstLinkpathDest(notePath, '');
 
 		if (file) {
-			// File exists, open it
-			await this.app.workspace.getLeaf().openFile(file);
+			await this.openFileWithoutDuplicate(file);
 		} else {
 			// File doesn't exist, create it (Obsidian default behavior)
 			const newFile = await this.app.vault.create(`${notePath}.md`, '');
-			await this.app.workspace.getLeaf().openFile(newFile);
+			await this.openFileWithoutDuplicate(newFile);
 		}
 	}
 
@@ -633,7 +910,7 @@ export default class FocusPlugin extends Plugin {
 		}
 
 		if (file instanceof TFile) {
-			await this.app.workspace.getLeaf().openFile(file);
+			await this.openFileWithoutDuplicate(file);
 		}
 	}
 
@@ -670,7 +947,7 @@ export default class FocusPlugin extends Plugin {
 		}
 
 		if (file instanceof TFile) {
-			await this.app.workspace.getLeaf().openFile(file);
+			await this.openFileWithoutDuplicate(file);
 		}
 	}
 
@@ -734,61 +1011,135 @@ export default class FocusPlugin extends Plugin {
 			new Notice('Weekly rollover complete');
 		}
 	}
+}
 
-	// ===== CalDAV Integration Methods =====
+/**
+ * Modal shown when auto-sort can't fit today's tasks into Immediate
+ */
+class AutoSortOverflowModal extends Modal {
+	private plugin: FocusPlugin;
+	private overflowTaskIds: string[];
 
-	/**
-	 * Test CalDAV connection and return discovered calendars
-	 */
-	async testCalDAVConnection(): Promise<DiscoveredCalendar[]> {
-		// Create or update client with current settings
-		if (!this.caldavClient) {
-			this.caldavClient = new CalDAVClient(this.settings.caldav);
-		} else {
-			this.caldavClient.updateSettings(this.settings.caldav);
-		}
-
-		return await this.caldavClient.testConnection();
+	constructor(plugin: FocusPlugin, _data: FocusData, overflowTasks: Task[]) {
+		super(plugin.app);
+		this.plugin = plugin;
+		// Store IDs so we always look up fresh data
+		this.overflowTaskIds = overflowTasks.map(t => t.id);
 	}
 
-	/**
-	 * Reschedule CalDAV sync interval (called when settings change)
-	 */
-	rescheduleCalDAVSync(): void {
-		// Clear existing interval
-		if (this.caldavSyncInterval) {
-			clearInterval(this.caldavSyncInterval);
-			this.caldavSyncInterval = null;
-		}
+	onOpen(): void {
+		this.plugin.overflowModalOpen = true;
+		const { contentEl } = this;
+		contentEl.empty();
+		contentEl.addClass('focus-overflow-modal');
 
-		// Don't schedule if not enabled or no calendar selected
-		if (!this.settings.caldav.enabled || !this.settings.caldav.selectedCalendarUrl) {
+		// Load fresh data synchronously isn't possible, so render what we know
+		// and reload in handlers
+		contentEl.createEl('h2', { text: 'Immediate is full' });
+		contentEl.createEl('p', {
+			text: `${this.overflowTaskIds.length} task(s) due today need to move to Immediate, but it's at the limit (${this.plugin.settings.maxImmediateTasks}).`,
+		});
+
+		// We need fresh data to render the task lists
+		void this.renderContent(contentEl);
+	}
+
+	private async renderContent(contentEl: HTMLElement): Promise<void> {
+		const data = await this.plugin.loadTaskData();
+
+		// Find the overflow tasks in fresh data
+		const overflowTasks = this.overflowTaskIds
+			.map(id => data.tasks.thisWeek.find(t => t.id === id))
+			.filter((t): t is Task => t != null);
+
+		if (overflowTasks.length === 0) {
+			// All overflow tasks have been resolved (e.g. moved already)
+			this.close();
 			return;
 		}
 
-		// Schedule new interval
-		const intervalMs = this.settings.caldav.syncIntervalMinutes * 60 * 1000;
-		this.caldavSyncInterval = setInterval(() => {
-			void this.syncCalDAV();
-		}, intervalMs);
+		contentEl.createEl('h3', { text: 'Tasks due today:' });
+		const taskList = contentEl.createEl('ul');
+		for (const task of overflowTasks) {
+			taskList.createEl('li', { text: task.title });
+		}
+
+		new Setting(contentEl)
+			.setName('Increase limit temporarily')
+			.setDesc(`Allow ${this.plugin.settings.maxImmediateTasks + overflowTasks.length} immediate tasks for now`)
+			.addButton((btn) =>
+				btn.setButtonText('Increase limit').setCta().onClick(async () => {
+					const freshData = await this.plugin.loadTaskData();
+					for (const id of this.overflowTaskIds) {
+						const task = freshData.tasks.thisWeek.find(t => t.id === id);
+						if (task) {
+							freshData.tasks.thisWeek = freshData.tasks.thisWeek.filter(t => t.id !== id);
+							task.section = 'immediate';
+							freshData.tasks.immediate.unshift(task);
+						}
+					}
+					await this.plugin.saveTaskData(freshData);
+					this.plugin.refreshFocusView();
+					this.close();
+				})
+			);
+
+		// Show non-do-date tasks in immediate that could be demoted
+		const demotable = data.tasks.immediate.filter(t => !t.completed && !t.doDate);
+		if (demotable.length > 0) {
+			contentEl.createEl('h3', { text: 'Or move a task back to This Week:' });
+			for (const task of demotable) {
+				new Setting(contentEl)
+					.setName(task.title)
+					.addButton((btn) =>
+						btn.setButtonText('Demote').onClick(async () => {
+							const freshData = await this.plugin.loadTaskData();
+
+							// Move this task to thisWeek
+							const taskToDemote = freshData.tasks.immediate.find(t => t.id === task.id);
+							if (taskToDemote) {
+								freshData.tasks.immediate = freshData.tasks.immediate.filter(t => t.id !== task.id);
+								taskToDemote.section = 'thisWeek';
+								freshData.tasks.thisWeek.push(taskToDemote);
+							}
+
+							// Promote the first overflow task to immediate
+							const promoteId = this.overflowTaskIds[0];
+							if (promoteId) {
+								const toPromote = freshData.tasks.thisWeek.find(t => t.id === promoteId);
+								if (toPromote) {
+									freshData.tasks.thisWeek = freshData.tasks.thisWeek.filter(t => t.id !== promoteId);
+									toPromote.section = 'immediate';
+									freshData.tasks.immediate.unshift(toPromote);
+								}
+								this.overflowTaskIds.shift();
+							}
+
+							await this.plugin.saveTaskData(freshData);
+							this.plugin.refreshFocusView();
+
+							if (this.overflowTaskIds.length === 0) {
+								this.close();
+							} else {
+								// Re-render modal with remaining overflow
+								this.onOpen();
+							}
+						})
+					);
+			}
+		}
+
+		new Setting(contentEl)
+			.addButton((btn) =>
+				btn.setButtonText('Dismiss').onClick(() => this.close())
+			);
 	}
 
-	/**
-	 * Perform CalDAV sync (push tasks to calendar)
-	 * Full implementation coming in Phase 2
-	 */
-	async syncCalDAV(): Promise<void> {
-		if (!this.settings.caldav.enabled || !this.settings.caldav.selectedCalendarUrl) {
-			return;
-		}
+	onClose(): void {
+		this.plugin.overflowModalOpen = false;
+		this.contentEl.empty();
 
-		// Ensure client is initialized
-		if (!this.caldavClient) {
-			this.caldavClient = new CalDAVClient(this.settings.caldav);
-		}
-
-		// TODO: Implement full sync in Phase 2
-		// For now, just log that sync was triggered
-		console.log('Focus CalDAV: Sync triggered (full implementation coming in Phase 2)');
+		// Catch up on any remote changes we suppressed while the modal was open
+		void this.plugin.catchUpRemoteSync();
 	}
 }
